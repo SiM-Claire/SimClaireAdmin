@@ -8,7 +8,7 @@ import {
   Users, 
   LogOut, 
   Globe, 
-  Activity 
+  Activity,Tag
 } from "lucide-react";
 
 export default function AdminLayout({ children }) {
@@ -23,6 +23,7 @@ export default function AdminLayout({ children }) {
   const menuItems = [
     { name: "Analytics", icon: <LayoutDashboard size={20} />, path: "/admin/analytics" },
     { name: "Pricing & Types", icon: <Settings2 size={20} />, path: "/admin/pricing" },
+    { name: "Promo Codes & Offers", icon: <Tag size={20} />, path: "/admin/promocodes" },
     // { name: "Active Users & Orders", icon: <Users size={20} />, path: "/admin/users" },
     // { name: "Global Coverage", icon: <Globe size={20} />, path: "/admin/coverage" }, // Extra feature: Manage countries
   ];
