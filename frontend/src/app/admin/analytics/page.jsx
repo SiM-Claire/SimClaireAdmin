@@ -110,7 +110,7 @@ export default function AnalyticsDashboard() {
       </div>
 
       {/* Best Selling Month insight (Added as requested) */}
-      <div className="bg-[#e8f4f1] border border-[#3a7d71]/20 p-6 rounded-2xl flex items-center justify-between">
+      {/* <div className="bg-[#e8f4f1] border border-[#3a7d71]/20 p-6 rounded-2xl flex items-center justify-between">
         <div>
           <h3 className="text-[#2b6157] font-bold text-lg flex items-center gap-2">
             <Calendar size={20} /> Peak Season Insight
@@ -118,7 +118,7 @@ export default function AnalyticsDashboard() {
           <p className="text-[#3a7d71] mt-1 font-medium">Historically, your highest sales occur in <strong className="text-slate-900">July</strong> (Summer Travel) with 1,200+ sales.</p>
         </div>
         <TrendingUp size={40} className="text-[#3a7d71] opacity-50 hidden sm:block" />
-      </div>
+      </div> */}
 
     </div>
   );
