@@ -11,7 +11,7 @@ import { allDestinations } from "@/data/destinationData";
 // --- Validation Schema for Edit Form ---
 const pricingSchema = z.object({
   name: z.string().min(2, "Display name is required").trim(),
-  globalMultiplier: z.coerce.number().min(1, "Multiplier must be at least 1.0").max(10, "Multiplier too high"),
+  globalMultiplier: z.coerce.number().min(1, "Multiplier must be at least 1.0").max(500, "Multiplier too high"),
 });
 
 export default function AdminPricingPanel() {
