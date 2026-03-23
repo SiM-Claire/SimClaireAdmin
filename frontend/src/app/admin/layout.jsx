@@ -10,6 +10,7 @@ import {
   LogOut, 
   Globe, 
   Activity,
+  Landmark,
   Tag,
   Menu,
   X
@@ -32,6 +33,7 @@ export default function AdminLayout({ children }) {
     { name: "Pricing & Types", icon: <Settings2 size={20} />, path: "/admin/pricing" },
     { name: "Promo Codes & Offers", icon: <Tag size={20} />, path: "/admin/promocodes" },
     { name: "User History", icon: <Users size={20} />, path: "/admin/users" },
+    { name: "Tax Management", icon: <Landmark size={20} />, path: "/admin/tax" },
     // { name: "Global Coverage", icon: <Globe size={20} />, path: "/admin/coverage" }, // Extra feature: Manage countries
   ];
 
