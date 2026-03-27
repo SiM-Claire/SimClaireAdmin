@@ -34,6 +34,7 @@ export default function AdminLayout({ children }) {
     { name: "Promo Codes & Offers", icon: <Tag size={20} />, path: "/admin/promocodes" },
     { name: "User History", icon: <Users size={20} />, path: "/admin/users" },
     { name: "Tax Management", icon: <Landmark size={20} />, path: "/admin/tax" },
+    { name: "Enterprise", icon: <Landmark size={20} />, path: "/admin/enterprise" },
     // { name: "Global Coverage", icon: <Globe size={20} />, path: "/admin/coverage" }, // Extra feature: Manage countries
   ];
 
