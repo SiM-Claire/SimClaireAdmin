@@ -64,6 +64,11 @@ export default function AdminUsersPanel() {
   // States for API 3 (CSV Export)
   const [isExporting, setIsExporting] = useState(false);
 
+  // States for API 4 (Export ALL CSV)
+  const [fromDate, setFromDate] = useState("");
+  const [toDate, setToDate] = useState("");
+  const [isExportingAll, setIsExportingAll] = useState(false);
+
   // --- API 1: Fetch all SIMs for a user ---
   const handleSearch = async (e) => {
     e.preventDefault();
@@ -187,6 +192,80 @@ export default function AdminUsersPanel() {
     }
   };
 
+  // --- API 4: Export ALL CSV based on Date Range ---
+  const handleExportAllCSV = async () => {
+    if (!fromDate || !toDate) {
+      alert("Please select both 'From' and 'To' dates.");
+      return;
+    }
+
+    setIsExportingAll(true);
+    
+    try {
+      // 1. Fetch real payload from backend using the new GET route
+      const res = await axios.get(
+        `${process.env.NEXT_PUBLIC_API_URL}/admin/get/frontend-payload/all?from_date=${fromDate}&to_date=${toDate}`, 
+        { withCredentials: true }
+      );
+      
+      const payloadData = res.data?.data;
+
+      if (!payloadData || payloadData.length === 0) {
+        alert("No data available for the selected date range.");
+        return;
+      }
+
+      // 2. Map destination codes to real country names
+      const formattedData = payloadData.map(row => {
+        const matchedDest = allDestinations.find(
+          (dest) => dest.destinationID === row.destination_country_code
+        );
+        
+        const countryName = matchedDest ? matchedDest.destinationName : (row.destination_country_code || "Unknown");
+
+        return {
+          ...row,
+          destination_country_code: countryName 
+        };
+      });
+
+      // 3. Parse JSON to CSV format
+      const headers = Object.keys(formattedData[0]);
+      
+      const csvRows = formattedData.map(row => {
+        return headers.map(fieldName => {
+          let cellData = row[fieldName] === null || row[fieldName] === undefined ? '' : row[fieldName];
+          cellData = cellData.toString().replace(/"/g, '""');
+          if (cellData.search(/("|,|\n)/g) >= 0) {
+            cellData = `"${cellData}"`;
+          }
+          return cellData;
+        }).join(',');
+      });
+
+      const csvString = [headers.join(','), ...csvRows].join('\n');
+
+      // 4. Trigger Browser Download
+      const blob = new Blob([csvString], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement("a");
+      const url = URL.createObjectURL(blob);
+      
+      // Update filename to reflect the date range
+      link.setAttribute("href", url);
+      link.setAttribute("download", `Global_Export_${fromDate}_to_${toDate}.csv`);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+    } catch (err) {
+      console.error("Export all failed:", err);
+      alert(err.response?.data?.message || "Failed to export data. Please try again.");
+    } finally {
+      setIsExportingAll(false);
+    }
+  };
+
   const closeModal = () => setSelectedSim(null);
 
   return (
@@ -227,10 +306,47 @@ export default function AdminUsersPanel() {
           </form>
           {searchError && <p className="text-red-500 text-sm font-semibold mt-3">{searchError}</p>}
         </div>
+{/* Global Export Section */}
+        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-200 mb-10">
+          <div className="mb-4">
+            <h2 className="text-lg font-bold text-gray-800">Global Data Export</h2>
+            <p className="text-sm text-gray-500">Download a complete CSV payload report for all users within a specific date range.</p>
+          </div>
+          
+          <div className="flex flex-col sm:flex-row items-center gap-4">
+            <div className="flex items-center gap-2 w-full sm:w-auto">
+              <input 
+                type="date" 
+                value={fromDate}
+                onChange={(e) => setFromDate(e.target.value)}
+                className="bg-gray-50 border border-gray-200 text-sm font-medium rounded-xl px-4 py-3 outline-none focus:border-[#077770] w-full"
+              />
+              <span className="text-gray-400 text-sm font-bold">to</span>
+              <input 
+                type="date" 
+                value={toDate}
+                onChange={(e) => setToDate(e.target.value)}
+                className="bg-gray-50 border border-gray-200 text-sm font-medium rounded-xl px-4 py-3 outline-none focus:border-[#077770] w-full"
+              />
+            </div>
 
+            <button 
+              onClick={handleExportAllCSV}
+              disabled={isExportingAll || !fromDate || !toDate}
+              className="px-6 py-3 bg-slate-900 text-white font-bold rounded-xl hover:bg-black transition-colors disabled:opacity-50 flex items-center justify-center min-w-[160px] cursor-pointer shadow-sm w-full sm:w-auto"
+            >
+              {isExportingAll ? (
+                <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+              ) : (
+                <><Download size={18} className="mr-2" /> Export All CSV</>
+              )}
+            </button>
+          </div>
+        </div>
         {/* Results List (API 1 Data) */}
         {hasSearched && !isSearching && !searchError && (
           <div className="space-y-6">
+            
             
             {/* Result Header with Export Button */}
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b pb-4 gap-4">
