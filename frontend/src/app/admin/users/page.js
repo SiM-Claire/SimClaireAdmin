@@ -297,7 +297,7 @@ const handleSendEmail = async () => {
   container.style.backgroundColor = "#fafafa"; 
   
   // 3. Insert your Premium HTML Email Template here
-  container.innerHTML = `
+ container.innerHTML = `
     <div style="margin:0; padding:0; background-color:#fafafa; font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; -webkit-font-smoothing: antialiased;">
       <!-- Outer Wrapper -->
       <table width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#fafafa" style="table-layout:fixed;">
@@ -309,23 +309,22 @@ const handleSendEmail = async () => {
 
                       <!-- 🌟 Premium Header -->
                     <tr>
-                        <td align="center" style="background-color:#077770; padding: 45px 30px 40px 30px;">
-                            <table cellpadding="0" cellspacing="0" border="0" style="margin: 0 auto;">
-                                <tr>
-                                    <td valign="middle" style="padding-right: 0px;">
-                                        <img src="https://res.cloudinary.com/dyalxye1e/image/upload/v1771692673/Logo_eqejec.png" alt="SiM Claire Mascot" width="90" style="display:block; border: 0;">
-                                    </td>
-                                    
-                                    <td valign="middle">
-                                        <!-- 👇 Added margin-left: -18px; here to pull it over the transparent gap 👇 -->
-                                        <div style="font-family: 'Avenir', Helvetica, Arial, sans-serif; font-size: 46px; letter-spacing: -0.5px; margin: 0 0 0 -12px; white-space: nowrap; line-height: 1;">
-                                            <span style="color:#ffffff; font-weight: bold; font-style: italic;">SiM</span>&nbsp;<span style="color:#f28628; font-weight: 500; font-style: italic;">Claire</span><sup style="font-size: 16px; color: #f28628; padding: 4px 0px; border-radius: 12px; margin-left: 4px; font-weight: bold; font-style: normal; vertical-align: super; letter-spacing: 0;">TM</sup>
-                                        </div>
-                                    </td>
-                                </tr>
-                            </table>
-                        </td>
-                    </tr>
+                          <td align="center" style="background-color:#077770; padding: 45px 30px 40px 30px;">
+                              <table cellpadding="0" cellspacing="0" border="0" style="margin: 0 auto;">
+                                  <tr>
+                                      <td valign="middle" style="padding-right: 0px;padding-top:40px">
+                                          <img src="https://res.cloudinary.com/dyalxye1e/image/upload/v1771692673/Logo_eqejec.png" alt="SiM Claire Mascot" width="90" style="display:block; border: 0;">
+                                      </td>
+                                      
+                                      <td valign="middle">
+                                          <div style="font-family: 'Avenir', Helvetica, Arial, sans-serif; font-size: 46px; letter-spacing: -0.5px; margin: 0 0 0 -12px; white-space: nowrap; line-height: 1;">
+                                              <span style="color:#ffffff; font-weight: bold; font-style: italic;">SiM</span>&nbsp;<span style="color:#f28628; font-weight: 500; font-style: italic;">Claire</span><sup style="font-size: 16px; color: #f28628; padding: 4px 0px; border-radius: 12px; margin-left: 4px; font-weight: bold; font-style: normal; vertical-align: super; letter-spacing: 0;">TM</sup>
+                                          </div>
+                                      </td>
+                                  </tr>
+                              </table>
+                          </td>
+                      </tr>
 
                       <!-- 🌟 Premium Welcome Message -->
                       <tr>
@@ -450,7 +449,7 @@ const handleSendEmail = async () => {
 
                       <!-- 🌟 Premium Alerts/Important Information -->
                       <tr>
-                          <td style="padding: 0 40px 30px 40px;">
+                          <td style="padding: 0 40px 24px 40px;">
                               <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#fff7ed; border: 1px solid #ffedd5; padding: 24px; border-radius: 16px;">
                                   <tr>
                                       <td>
@@ -464,6 +463,20 @@ const handleSendEmail = async () => {
                                       </td>
                                   </tr>
                               </table>
+                          </td>
+                      </tr>
+
+                      <!-- 🌟 NEW: Contact Email & Phone -->
+                      <tr>
+                          <td align="center" style="padding: 0 40px 30px 40px;">
+                              <p style="margin: 0; color: #64748b; font-size: 14px; font-weight: 600;">
+                                  Need help? Reach our support concierge:
+                              </p>
+                              <p style="margin: 8px 0 0 0; color: #0f172a; font-size: 15px; font-weight: 800;">
+                                  <a href="mailto:care@simclaire.com" style="color: #077770; text-decoration: none;">care@simclaire.com</a> 
+                                  &nbsp;|&nbsp; 
+                                  <a href="tel:+14376056560" style="color: #077770; text-decoration: none;">+1 (437) 605-6560</a>
+                              </p>
                           </td>
                       </tr>
 
