@@ -49,7 +49,7 @@ export default function AdminLayout({ children }) {
       <div className="md:hidden fixed top-0 left-0 right-0 h-16 bg-white border-b border-gray-200 shadow-sm z-30 flex items-center justify-between px-4">
         <div className="flex items-center gap-2 text-xl font-bold text-slate-900">
           <Activity className="text-[#ec5b13]" size={24} /> 
-          <span>SiM Admin</span>
+          <span>SiM Claire </span>
         </div>
         <button 
           onClick={() => setIsMobileMenuOpen(true)}
@@ -75,7 +75,7 @@ export default function AdminLayout({ children }) {
       >
         <div className="p-6 border-b border-slate-800 flex items-center justify-between">
           <h2 className="text-2xl font-bold text-white flex items-center gap-2">
-            <Activity className="text-[#ec5b13]" /> SiM Admin
+            <Activity className="text-[#ec5b13]" /> SiM Claire
           </h2>
           {/* Close button for mobile inside the sidebar */}
           <button 

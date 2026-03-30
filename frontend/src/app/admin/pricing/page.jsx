@@ -46,6 +46,8 @@ export default function AdminPricingPanel() {
         { id: 2, typeId: "2", name: "Type 2 eSIM", globalMultiplier: 1.0, countryMultipliers: {} },
         { id: 3, typeId: "3", name: "Type 3 eSIM", globalMultiplier: 1.0, countryMultipliers: {} },
         { id: 4, typeId: "4", name: "Type 4 eSIM", globalMultiplier: 1.0, countryMultipliers: {} },
+        { id: 5, typeId: "5", name: "Type 5 eSIM", globalMultiplier: 1.0, countryMultipliers: {} },
+        { id: 6, typeId: "6", name: "Type 6 eSIM", globalMultiplier: 1.0, countryMultipliers: {} },
       ];
 
       // 2. Fetch data from backend
