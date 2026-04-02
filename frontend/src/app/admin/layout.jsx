@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { 
   LayoutDashboard, Settings2, Users, LogOut, 
-  Landmark, Tag, Menu, X, Building2, Activity
+  Landmark, Tag, Menu, X, Building2, Activity,Smartphone, Terminal
 } from "lucide-react";
 
 export default function AdminLayout({ children }) {
@@ -47,8 +47,8 @@ export default function AdminLayout({ children }) {
     { name: "User History", icon: <Users size={20} />, path: "/admin/users" },
     { name: "Tax Management", icon: <Landmark size={20} />, path: "/admin/tax" },
     { name: "Enterprise", icon: <Building2 size={20} />, path: "/admin/enterprise" },
-    { name: "Devices", icon: <Building2 size={20} />, path: "/admin/devices" },
-    { name: "User Logs", icon: <Building2 size={20} />, path: "/admin/logs" },
+    { name: "Devices", icon: <Smartphone size={20} />, path: "/admin/devices" },
+    { name: "User Logs", icon: <Terminal size={20} />, path: "/admin/logs" },
   ];
 
   const handleNavClick = () => setIsMobileMenuOpen(false);
