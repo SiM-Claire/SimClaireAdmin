@@ -56,7 +56,7 @@ export default function AdminPromoCodes() {
   headers: {
     Authorization: `Bearer ${adminToken}` // 🌟 Pass the token to the backend
   }});
-      console.log(res.data)
+      // console.log(res.data)
       setPromoCodes(res.data.data)
       setLoading(false)
     } catch (err) {
@@ -81,7 +81,7 @@ export default function AdminPromoCodes() {
   headers: {
     Authorization: `Bearer ${adminToken}` // 🌟 Pass the token to the backend
   }});
-      console.log(res.data)
+      // console.log(res.data)
       
       // Update UI with new code
       setPromoCodes(prev => [{ ...payload, id: res.data?.data?.id || Math.random() }, ...prev]);

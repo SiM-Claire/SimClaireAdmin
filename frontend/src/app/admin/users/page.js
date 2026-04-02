@@ -91,7 +91,7 @@ export default function AdminUsersPanel() {
   headers: {
     Authorization: `Bearer ${adminToken}` // 🌟 Pass the token to the backend
   }});
-      console.log(res.data.data)
+      // console.log(res.data.data)
       if (res.data && res.data.data) {
         setUserSims(res.data.data);
       } else {
@@ -116,7 +116,7 @@ export default function AdminUsersPanel() {
   headers: {
     Authorization: `Bearer ${adminToken}` // 🌟 Pass the token to the backend
   }});
-      console.log(res.data.data)
+      // console.log(res.data.data)
       
       if (res.data && res.data.data) {
         setSelectedSim(res.data.data);

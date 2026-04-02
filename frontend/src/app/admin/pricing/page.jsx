@@ -56,7 +56,7 @@ export default function AdminPricingPanel() {
   headers: {
     Authorization: `Bearer ${adminToken}` // 🌟 Pass the token to the backend
   }});
-      console.log(res.data)
+      // console.log(res.data)
       const dbData = res.data.data || res.data; // Handle your standard response wrapper
 
       // 3. Translate flat DB table into our grouped UI format

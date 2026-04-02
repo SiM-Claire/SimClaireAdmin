@@ -20,7 +20,6 @@ export default function AdminLogin() {
       const res = await axios.post(`${process.env.NEXT_PUBLIC_API_URL}/auth/google`, {
         idToken: credentialResponse.credential,
       });
-      console.log(res.data)
 
       if (res.data.status === "success" && res.data.token) {
         // Save the backend JWT to localStorage
