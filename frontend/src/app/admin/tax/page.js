@@ -12,6 +12,7 @@ import {
 import { allDestinations } from '@/data/destinationData';
 
 export default function TaxManagementCMS() {
+  const adminToken = localStorage.getItem("adminToken");
   const [countries, setCountries] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -27,7 +28,10 @@ export default function TaxManagementCMS() {
 
   const fetchTaxData = async () => {
     try {
-      const res = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/admin/tax-status`);
+      const res = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/admin/tax-status`, {
+  headers: {
+    Authorization: `Bearer ${adminToken}` // 🌟 Pass the token to the backend
+  }});
       setCountries(res.data.data || res.data || []);
       setLoading(false);
     } catch (err) {
@@ -49,7 +53,10 @@ export default function TaxManagementCMS() {
       await axios.post(`${process.env.NEXT_PUBLIC_API_URL}/admin/toggle-country`, { 
         countryCode, 
         isActive: !currentStatus 
-      });
+      }, {
+  headers: {
+    Authorization: `Bearer ${adminToken}` // 🌟 Pass the token to the backend
+  }});
     } catch (err) {
       fetchTaxData();
       alert("Failed to toggle status.");
@@ -72,7 +79,10 @@ export default function TaxManagementCMS() {
     };
 
     try {
-      await axios.post(`${process.env.NEXT_PUBLIC_API_URL}/admin/update-tax-country`, payload);
+      await axios.post(`${process.env.NEXT_PUBLIC_API_URL}/admin/update-tax-country`, payload, {
+  headers: {
+    Authorization: `Bearer ${adminToken}` // 🌟 Pass the token to the backend
+  }});
       
       setCountries((prevCountries) => {
         return prevCountries.map((country) => {

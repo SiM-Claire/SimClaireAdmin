@@ -1,32 +1,43 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { 
-  LayoutDashboard, 
-  Settings2, 
-  Users, 
-  LogOut, 
-  Globe, 
-  Activity,
-  Landmark,
-  Tag,
-  Menu,
-  X,
-  Building2
+  LayoutDashboard, Settings2, Users, LogOut, 
+  Landmark, Tag, Menu, X, Building2, Activity
 } from "lucide-react";
 
 export default function AdminLayout({ children }) {
   const pathname = usePathname();
   const router = useRouter();
   
-  // 🌟 State for mobile menu
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  
+  // 🌟 NEW: Loading state to prevent flashing the dashboard before redirecting
+  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
+
+  // 🌟 Route Guard Logic
+  useEffect(() => {
+    // If they are already on the login page, stop checking and let them render it
+    if (pathname === "/admin/login") {
+      setIsCheckingAuth(false);
+      return;
+    }
+
+    // If they are trying to access a protected route, check for the token
+    const adminToken = localStorage.getItem("adminToken");
+    
+    if (!adminToken) {
+      router.push("/admin/login"); // Kick to login
+    } else {
+      setIsCheckingAuth(false); // Valid token found, let them see the dashboard
+    }
+  }, [pathname, router]);
 
   const handleLogout = () => {
-    // localStorage.removeItem("adminToken");
-    router.push("/login");
+    localStorage.removeItem("adminToken");
+    router.push("/admin/login");
   };
 
   const menuItems = [
@@ -36,16 +47,25 @@ export default function AdminLayout({ children }) {
     { name: "User History", icon: <Users size={20} />, path: "/admin/users" },
     { name: "Tax Management", icon: <Landmark size={20} />, path: "/admin/tax" },
     { name: "Enterprise", icon: <Building2 size={20} />, path: "/admin/enterprise" },
-    // { name: "Global Coverage", icon: <Globe size={20} />, path: "/admin/coverage" }, // Extra feature: Manage countries
   ];
 
-  // Helper to close mobile menu on navigation
   const handleNavClick = () => setIsMobileMenuOpen(false);
 
+  // 🌟 Wait while checking auth to prevent UI flickering
+  if (isCheckingAuth) {
+    return <div className="min-h-screen bg-slate-50 flex items-center justify-center"><div className="w-10 h-10 border-4 border-[#ec5b13] border-t-transparent rounded-full animate-spin"></div></div>;
+  }
+
+  // 🌟 If on the login page, ONLY render the page content. No sidebar.
+  if (pathname === "/admin/login") {
+    return <>{children}</>;
+  }
+
+  // Otherwise, render the full protected Admin Dashboard Layout
   return (
     <div className="min-h-screen bg-gray-50 flex font-sans">
       
-      {/* 🌟 Mobile Header (Visible only on small screens) 🌟 */}
+      {/* Mobile Header */}
       <div className="md:hidden fixed top-0 left-0 right-0 h-16 bg-white border-b border-gray-200 shadow-sm z-30 flex items-center justify-between px-4">
         <div className="flex items-center gap-2 text-xl font-bold text-slate-900">
           <Activity className="text-[#ec5b13]" size={24} /> 
@@ -59,7 +79,7 @@ export default function AdminLayout({ children }) {
         </button>
       </div>
 
-      {/* 🌟 Mobile Backdrop Overlay 🌟 */}
+      {/* Mobile Backdrop Overlay */}
       <div 
         className={`fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-40 md:hidden transition-opacity duration-300 ${
           isMobileMenuOpen ? "opacity-100 visible" : "opacity-0 invisible"
@@ -77,7 +97,6 @@ export default function AdminLayout({ children }) {
           <h2 className="text-2xl font-bold text-white flex items-center gap-2">
             <Activity className="text-[#ec5b13]" /> SiM Claire
           </h2>
-          {/* Close button for mobile inside the sidebar */}
           <button 
             onClick={() => setIsMobileMenuOpen(false)}
             className="md:hidden text-slate-400 hover:text-white p-1 rounded-lg transition-colors cursor-pointer"
@@ -120,7 +139,6 @@ export default function AdminLayout({ children }) {
       </aside>
 
       {/* Main Content Area */}
-      {/* 🌟 Added pt-16 on mobile to account for the fixed mobile header 🌟 */}
       <main className="flex-1 md:ml-64 relative min-h-screen pt-16 md:pt-0">
         {children}
       </main>

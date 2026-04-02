@@ -51,6 +51,7 @@ const StatusBadge = ({ status, label = "" }) => {
 };
 
 export default function AdminUsersPanel() {
+  const adminToken = localStorage.getItem("adminToken");
   const [emailInput, setEmailInput] = useState("");
   
   // States for API 1 (User Sims)
@@ -86,7 +87,10 @@ export default function AdminUsersPanel() {
     setUserSims([]);
 
     try {
-      const res = await axios.post(`${process.env.NEXT_PUBLIC_API_URL}/admin/get/userdata`, { email: emailInput.trim() });
+      const res = await axios.post(`${process.env.NEXT_PUBLIC_API_URL}/admin/get/userdata`, { email: emailInput.trim() }, {
+  headers: {
+    Authorization: `Bearer ${adminToken}` // 🌟 Pass the token to the backend
+  }});
       console.log(res.data.data)
       if (res.data && res.data.data) {
         setUserSims(res.data.data);
@@ -109,8 +113,9 @@ export default function AdminUsersPanel() {
 
     try {
       const res = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/admin/get/user/esimHistorybyId/${esim_history_id}`, {
-        withCredentials: true
-      });
+  headers: {
+    Authorization: `Bearer ${adminToken}` // 🌟 Pass the token to the backend
+  }});
       console.log(res.data.data)
       
       if (res.data && res.data.data) {
@@ -133,8 +138,10 @@ export default function AdminUsersPanel() {
     
     try {
       const res = await axios.post(`${process.env.NEXT_PUBLIC_API_URL}/admin/get/frontend-payload`, 
-        { email: emailInput.trim() },
-        { withCredentials: true }
+        { email: emailInput.trim() }, {
+  headers: {
+    Authorization: `Bearer ${adminToken}` // 🌟 Pass the token to the backend
+  }}
       );
       
       const payloadData = res.data?.data;
@@ -203,8 +210,10 @@ export default function AdminUsersPanel() {
     
     try {
       const res = await axios.get(
-        `${process.env.NEXT_PUBLIC_API_URL}/admin/get/frontend-payload/all?from_date=${fromDate}&to_date=${toDate}`, 
-        { withCredentials: true }
+        `${process.env.NEXT_PUBLIC_API_URL}/admin/get/frontend-payload/all?from_date=${fromDate}&to_date=${toDate}`, {
+  headers: {
+    Authorization: `Bearer ${adminToken}` // 🌟 Pass the token to the backend
+  }}
       );
       
       const payloadData = res.data?.data;

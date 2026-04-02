@@ -19,6 +19,7 @@ const formatDate = (dateString) => {
 
 export default function EnterpriseAdminCMS() {
   // Put this logic right above your button in the component
+  const adminToken = localStorage.getItem("adminToken");
               const emailSubject = encodeURIComponent("Your SiM Claire IoT Inquiry");
               const emailBody = encodeURIComponent(`Greetings!
 
@@ -71,8 +72,9 @@ export default function EnterpriseAdminCMS() {
       }
 
       const res = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/b2b/leads${query}`, {
-        withCredentials: true
-      });
+  headers: {
+    Authorization: `Bearer ${adminToken}` // 🌟 Pass the token to the backend
+  }});
 
       // Assume data is nested in standard REST format (e.g., res.data.data)
       setLeads(res.data.data || res.data || []);
@@ -99,8 +101,10 @@ export default function EnterpriseAdminCMS() {
     setIsUpdating(true);
     try {
       await axios.patch(`${process.env.NEXT_PUBLIC_API_URL}/b2b/leads/${id}`,
-        { is_active: !currentStatus },
-        { withCredentials: true }
+        { is_active: !currentStatus }, {
+  headers: {
+    Authorization: `Bearer ${adminToken}` // 🌟 Pass the token to the backend
+  }}
       );
 
       // Update local state instantly without full refresh

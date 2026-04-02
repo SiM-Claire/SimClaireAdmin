@@ -15,6 +15,7 @@ const pricingSchema = z.object({
 });
 
 export default function AdminPricingPanel() {
+  const adminToken = localStorage.getItem("adminToken");
   const [simTypes, setSimTypes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -51,7 +52,10 @@ export default function AdminPricingPanel() {
       ];
 
       // 2. Fetch data from backend
-      const res = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/admin/get/sim-multiplier`);
+      const res = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/admin/get/sim-multiplier`, {
+  headers: {
+    Authorization: `Bearer ${adminToken}` // 🌟 Pass the token to the backend
+  }});
       console.log(res.data)
       const dbData = res.data.data || res.data; // Handle your standard response wrapper
 
@@ -104,7 +108,10 @@ export default function AdminPricingPanel() {
           country_code: "GLOBAL",
           multiplier: data.globalMultiplier,
           is_active: true
-        }) // add , { headers } if needed
+        }, {
+  headers: {
+    Authorization: `Bearer ${adminToken}` // 🌟 Pass the token to the backend
+  }}) // add , { headers } if needed
       );
 
       // B. Queue all Active Country Overrides (UPSERT)
@@ -115,7 +122,10 @@ export default function AdminPricingPanel() {
             country_code: countryCode, 
             multiplier: overrideObj.multiplier,
             is_active: true
-          })
+          }, {
+  headers: {
+    Authorization: `Bearer ${adminToken}` // 🌟 Pass the token to the backend
+  }})
         );
       });
 
@@ -124,7 +134,10 @@ export default function AdminPricingPanel() {
         requests.push(
           // Assumes your backend looks for the ID in the URL: /admin/delete/sim-multiplier/11
           // If it expects it in the body, use: axios.delete(DELETE_URL, { data: { id: dbId } })
-          axios.post(`${DELETE_URL}`,{id:dbId})
+          axios.post(`${DELETE_URL}`,{id:dbId}, {
+  headers: {
+    Authorization: `Bearer ${adminToken}` // 🌟 Pass the token to the backend
+  }})
         );
       });
 

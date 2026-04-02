@@ -24,6 +24,7 @@ const promoSchema = z.object({
 });
 
 export default function AdminPromoCodes() {
+  const adminToken = localStorage.getItem("adminToken");
   const [promoCodes, setPromoCodes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -51,7 +52,10 @@ export default function AdminPromoCodes() {
 
   const fetchPromoCodes = async () => {
     try {
-      const res = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/admin/promocode`);
+      const res = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/admin/promocode`, {
+  headers: {
+    Authorization: `Bearer ${adminToken}` // 🌟 Pass the token to the backend
+  }});
       console.log(res.data)
       setPromoCodes(res.data.data)
       setLoading(false)
@@ -73,7 +77,10 @@ export default function AdminPromoCodes() {
     if (!payload.sim_type) payload.sim_type = null;
 
     try {
-      const res = await axios.post(`${process.env.NEXT_PUBLIC_API_URL}/admin/promocode`, payload);
+      const res = await axios.post(`${process.env.NEXT_PUBLIC_API_URL}/admin/promocode`, payload, {
+  headers: {
+    Authorization: `Bearer ${adminToken}` // 🌟 Pass the token to the backend
+  }});
       console.log(res.data)
       
       // Update UI with new code
@@ -92,7 +99,10 @@ export default function AdminPromoCodes() {
 
     try {
       
-      await axios.delete(`${process.env.NEXT_PUBLIC_API_URL}/admin/promocode/${id}`);
+      await axios.delete(`${process.env.NEXT_PUBLIC_API_URL}/admin/promocode/${id}`, {
+  headers: {
+    Authorization: `Bearer ${adminToken}` // 🌟 Pass the token to the backend
+  }});
       setPromoCodes(prev => prev.filter(code => code.id !== id));
     } catch (err) {
       console.error("Failed to delete", err);

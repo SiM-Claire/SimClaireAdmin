@@ -30,6 +30,7 @@ const getTypeColor = (type) => {
 };
 
 export default function AnalyticsDashboard() {
+  const adminToken = localStorage.getItem("adminToken");
   const [filter, setFilter] = useState("all");
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -50,9 +51,10 @@ export default function AnalyticsDashboard() {
   useEffect(() => {
     const fetchBalance = async () => {
       try {
-        const res = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/admin/get/balance`, {
-          withCredentials: true
-        });
+        const res = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/admin/get/balance`,  {
+  headers: {
+    Authorization: `Bearer ${adminToken}` // 🌟 Pass the token to the backend
+  }});
         setBalanceData(res.data.data);
       } catch (err) {
         console.error("Failed to fetch admin balance:", err);
@@ -68,8 +70,9 @@ export default function AnalyticsDashboard() {
       setError("");
       try {
         const res = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/admin/analytics/overview?filter=${filter}`, {
-          withCredentials: true
-        });
+  headers: {
+    Authorization: `Bearer ${adminToken}` // 🌟 Pass the token to the backend
+  }});
         setData(res.data.data);
       } catch (err) {
         console.error("Failed to fetch analytics:", err);
