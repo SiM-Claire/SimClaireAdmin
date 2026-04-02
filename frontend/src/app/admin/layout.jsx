@@ -47,6 +47,8 @@ export default function AdminLayout({ children }) {
     { name: "User History", icon: <Users size={20} />, path: "/admin/users" },
     { name: "Tax Management", icon: <Landmark size={20} />, path: "/admin/tax" },
     { name: "Enterprise", icon: <Building2 size={20} />, path: "/admin/enterprise" },
+    { name: "Devices", icon: <Building2 size={20} />, path: "/admin/devices" },
+    { name: "User Logs", icon: <Building2 size={20} />, path: "/admin/logs" },
   ];
 
   const handleNavClick = () => setIsMobileMenuOpen(false);
