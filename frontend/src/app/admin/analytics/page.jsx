@@ -24,7 +24,7 @@ const getFlagUrl = (destination) => {
 const getTypeColor = (type) => {
   const t = type.toLowerCase();
   if (t.includes("1")) return "bg-brand";
-  if (t.includes("2")) return "bg-tertary";
+  if (t.includes("2")) return "bg-secondary";
   if (t.includes("3")) return "bg-blue-500";
   if (t.includes("4")) return "bg-purple-500";
   return "bg-slate-800";
