@@ -48,6 +48,12 @@ export default function TaxManagementCMS() {
   }, []);
 
   const handleToggle = async (countryCode, currentStatus) => {
+    const enteredPassword = window.prompt("Enter admin PIN to toggle this country's tax status. This cannot be undone:");
+    
+    if (enteredPassword !== process.env.NEXT_PUBLIC_ADMIN_PIN) {
+      alert("Incorrect PIN. Toggle cancelled.");
+      return; // Stop execution entirely
+    }
     try {
       setCountries(countries.map(c => 
         c.countryCode === countryCode ? { ...c, active: !currentStatus } : c
@@ -70,6 +76,14 @@ export default function TaxManagementCMS() {
     e.preventDefault();
     setIsUpdating(true);
     
+    const enteredPassword = window.prompt("Enter admin PIN to update this country's tax rules. This cannot be undone:");
+    
+    if (enteredPassword !== process.env.NEXT_PUBLIC_ADMIN_PIN) {
+      alert("Incorrect PIN. Update cancelled.");
+      return; // Stop execution entirely
+    }
+
+
     const payload = {
       countryCode: editingCountry.countryCode,
       countryName: editingCountry.countryName,

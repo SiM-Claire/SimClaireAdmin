@@ -69,9 +69,17 @@ export default function AdminPromoCodes() {
   };
 
   // --- 2. Add Promo Code ---
-  const onSubmit = async (data) => {
+ const onSubmit = async (data) => {
     setActionError("");
     
+    // 🌟 NEW: Prompt for password to prevent accidental creation
+    const enteredPassword = window.prompt("Enter admin PIN to create this promo code:");
+    
+    if (enteredPassword !== process.env.NEXT_PUBLIC_ADMIN_PIN) {
+      alert("Incorrect PIN. Creation cancelled.");
+      return; // Stop execution entirely
+    }
+
     // Clean up empty optional fields for the backend
     const payload = { ...data };
     if (!payload.max_discount) payload.max_discount = null;
@@ -81,10 +89,10 @@ export default function AdminPromoCodes() {
 
     try {
       const res = await axios.post(`${process.env.NEXT_PUBLIC_API_URL}/admin/promocode`, payload, {
-  headers: {
-    Authorization: `Bearer ${adminToken}` // 🌟 Pass the token to the backend
-  }});
-      // console.log(res.data)
+        headers: {
+          Authorization: `Bearer ${adminToken}` 
+        }
+      });
       
       // Update UI with new code
       setPromoCodes(prev => [{ ...payload, id: res.data?.data?.id || Math.random() }, ...prev]);
@@ -96,16 +104,22 @@ export default function AdminPromoCodes() {
     }
   };
 
-  // --- 3. Delete Promo Code ---
   const handleDelete = async (id) => {
-    if (!window.confirm("Are you sure you want to delete this promo code? This cannot be undone.")) return;
+    // 🌟 REPLACED window.confirm with window.prompt for the password check
+    const enteredPassword = window.prompt("Enter admin PIN to delete this promo code. This cannot be undone:");
+    
+    if (enteredPassword !== process.env.NEXT_PUBLIC_ADMIN_PIN) {
+      alert("Incorrect PIN. Deletion cancelled.");
+      return; // Stop execution entirely
+    }
 
     try {
-      
       await axios.delete(`${process.env.NEXT_PUBLIC_API_URL}/admin/promocode/${id}`, {
-  headers: {
-    Authorization: `Bearer ${adminToken}` // 🌟 Pass the token to the backend
-  }});
+        headers: {
+          Authorization: `Bearer ${adminToken}` 
+        }
+      });
+      
       setPromoCodes(prev => prev.filter(code => code.id !== id));
     } catch (err) {
       console.error("Failed to delete", err);

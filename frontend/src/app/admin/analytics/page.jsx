@@ -160,7 +160,7 @@ export default function AnalyticsDashboard() {
       ) : data ? (
         <>
           {/* 🌟 UPDATED: Top Metric Cards (Now 5 items) */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-4 gap-4 lg:gap-6 mb-8">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-3 gap-4 lg:gap-6 mb-8">
             <MetricCard
               title="Total Revenue"
               value={formatCurrency(data.total_revenue, 'CAD')}
@@ -290,7 +290,7 @@ function WalletCard({ title, value, icon, gradient }) {
       </div>
       <div className="min-w-0">
         <p className="text-[10px] font-bold text-white/80 uppercase tracking-widest mb-0.5 truncate">{title}</p>
-        <p className="text-xl sm:text-2xl font-black truncate tracking-tight">{value}</p>
+        <p className="text-md lg:text-lg font-black truncate tracking-tight">{value}</p>
       </div>
     </div>
   );
@@ -305,7 +305,7 @@ function MetricCard({ title, value, icon, color, bg }) {
       </div>
       <div className="min-w-0">
         <p className="text-[11px] lg:text-xs font-bold text-slate-400 uppercase tracking-wider mb-1 truncate">{title}</p>
-        <p className="text-xl lg:text-2xl font-extrabold text-slate-900 truncate">{value}</p>
+        <p className="text-[14px] lg:text-lg font-bold text-slate-900 truncate">{value}</p>
       </div>
     </div>
   );
