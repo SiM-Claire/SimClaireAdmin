@@ -120,11 +120,13 @@ export default function AnalyticsDashboard() {
           {/* 🌟 NEW: Company Cost Card */}
           <div className="w-full sm:w-72">
             <WalletCard
-              title="Company Cost"
-              value={formatCurrency(data.total_revenue - data.total_profit, 'CAD')}
-              icon={<Receipt size={20} className="text-white" />}
-              gradient="bg-gradient-to-r from-rose-500 to-rose-600"
-            /></div>
+              title="Active Users"
+              value={new Intl.NumberFormat().format(data.active_users || 0)}
+              icon={<Users size={24} className="text-white" />}
+              gradient="bg-gradient-to-r from-slate-900 to-slate-800"
+            />
+          </div>
+          
         </div>
       )}
 
@@ -176,12 +178,15 @@ export default function AnalyticsDashboard() {
               color="text-[#ec5b13]"
               bg="bg-[#ec5b13]/10"
             />
+            
+            
             <MetricCard
-              title="Active Users"
-              value={new Intl.NumberFormat().format(data.active_users || 0)}
-              icon={<Users size={24} />}
-              color="text-blue-600"
-              bg="bg-blue-100"
+              title="Company Cost"
+              value={formatCurrency(data.total_revenue - data.total_profit, 'CAD')}
+              icon={<Receipt size={20}
+                />}
+              color="text-red-600"
+              bg="bg-red-100"
             />
             <MetricCard
               title="Total SIMs Sold"
