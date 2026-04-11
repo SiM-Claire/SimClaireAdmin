@@ -139,7 +139,7 @@ export default function AdminUsersPanel() {
       }
     } catch (err) {
       console.error("Details fetch failed:", err);
-      setDetailsError("Failed to load deep eSIM details.");
+      setDetailsError("Failed to load  eSIM details.");
       setSelectedSim(null); 
     } finally {
       setIsDetailsLoading(false);
@@ -250,13 +250,568 @@ export default function AdminUsersPanel() {
 
   // --- API 5: Send Activation Email ---
   const handleSendEmail = async () => {
-    // (Omitted unchanged HTML generation code for brevity, assumes working as in your snippet)
-    if (!selectedSim?.email) {
-      alert("No email address associated with this record.");
-      return;
+
+  if (!selectedSim?.email) {
+
+    alert("No email address associated with this record.");
+
+    return;
+
+  }
+
+
+
+  // 1. Generate the QR Code as a base64 image FIRST
+
+  let qrCodeDataUri = "";
+
+  if (selectedSim?.activation_code) {
+
+    try {
+
+      qrCodeDataUri = await QRCode.toDataURL(selectedSim.activation_code, {
+
+        width: 150,
+
+        margin: 1,
+
+      });
+
+    } catch (err) {
+
+      console.error("Failed to generate QR code", err);
+
     }
-    alert("Functionality triggered (Code preserved from original).");
-  };
+
+  }
+
+
+
+  // 2. Create a hidden, temporary container for our HTML template
+
+  const container = document.createElement("div");
+
+  // Safely hide the element behind the UI. Set height to auto so it doesn't get squished.
+
+  container.style.position = "absolute";
+
+  container.style.top = "0px";
+
+  container.style.left = "0px";
+
+  container.style.zIndex = "-9999";
+
+  container.style.width = "650px";
+
+  container.style.height = "auto";
+
+  container.style.backgroundColor = "#fafafa";
+
+ 
+
+  // 3. Insert your Premium HTML Email Template here
+
+ container.innerHTML = `
+
+    <div style="margin:0; padding:0; background-color:#fafafa; font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; -webkit-font-smoothing: antialiased;">
+
+      <!-- Outer Wrapper -->
+
+      <table width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#fafafa" style="table-layout:fixed;">
+
+          <tr>
+
+              <td align="center" style="padding: 40px 20px;">
+
+                 
+
+                  <!-- Main Card -->
+
+                  <table width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:600px; margin:0 auto; background-color:#ffffff; border-radius: 20px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.03); border: 1px solid #f1f5f9;">
+
+
+
+                      <!-- 🌟 Premium Header -->
+
+                    <tr>
+
+                          <td align="center" style="background-color:#077770; padding: 45px 30px 40px 30px;">
+
+                              <table cellpadding="0" cellspacing="0" border="0" style="margin: 0 auto;">
+
+                                  <tr>
+
+                                      <td valign="middle" style="padding-right: 0px;padding-top:40px">
+
+                                          <img src="https://res.cloudinary.com/dyalxye1e/image/upload/v1771692673/Logo_eqejec.png" alt="SiM Claire Mascot" width="90" style="display:block; border: 0;">
+
+                                      </td>
+
+                                     
+
+                                      <td valign="middle">
+
+                                          <div style="font-family: 'Avenir', Helvetica, Arial, sans-serif; font-size: 46px; letter-spacing: -0.5px; margin: 0 0 0 -12px; white-space: nowrap; line-height: 1;">
+
+                                              <span style="color:#ffffff; font-weight: bold; font-style: italic;">SiM</span>&nbsp;<span style="color:#f28628; font-weight: 500; font-style: italic;">Claire</span><sup style="font-size: 16px; color: #f28628; padding: 4px 0px; border-radius: 12px; margin-left: 4px; font-weight: bold; font-style: normal; vertical-align: super; letter-spacing: 0;">TM</sup>
+
+                                          </div>
+
+                                      </td>
+
+                                  </tr>
+
+                              </table>
+
+                          </td>
+
+                      </tr>
+
+
+
+                      <!-- 🌟 Premium Welcome Message -->
+
+                      <tr>
+
+                          <td style="padding: 40px 40px 20px 40px;">
+
+                              <h1 style="margin:0 0 12px 0; color:#0f172a; font-size:26px; font-weight: 800; letter-spacing: -0.5px;">
+
+                                  Welcome to borderless connectivity, <span style="color:#077770;">${selectedSim?.name || 'Customer'}</span>.
+
+                              </h1>
+
+                              <p style="margin:0; color:#475569; font-size:15px; line-height:1.6; font-weight: 500;">
+
+                                  Thank you for choosing SiM Claire. Your order has been successfully processed and your eSIM is ready. Below is your official receipt and comprehensive plan summary.
+
+                              </p>
+
+                          </td>
+
+                      </tr>
+
+
+
+                      <!-- 🌟 Order Summary Box -->
+
+                      <tr>
+
+                          <td style="padding: 0 40px 24px 40px;">
+
+                              <table width="100%" cellpadding="0" cellspacing="0" border="0" style="border: 1px solid #f1f5f9; background-color: #ffffff; border-radius: 16px;">
+
+                                  <tr>
+
+                                      <td style="padding: 24px;">
+
+                                          <h3 style="margin: 0 0 20px 0; font-size: 11px; text-transform: uppercase; letter-spacing: 1.5px; font-weight: 800; color:#94a3b8; border-bottom: 1px solid #f1f5f9; padding-bottom: 12px;">Order Summary</h3>
+
+                                         
+
+                                          <table width="100%" cellpadding="0" cellspacing="0" border="0">
+
+                                              <tr>
+
+                                                  <td style="padding: 0 0 12px 0; color:#64748b; font-size:14px; font-weight: 600; width:40%;">Order Number:</td>
+
+                                                  <td align="right" style="padding: 0 0 12px 0; color:#0f172a; font-size:14px; font-weight: 800;">#${selectedSim?.order_id || 'N/A'}</td>
+
+                                              </tr>
+
+                                              <tr>
+
+                                                  <td style="padding: 0 0 12px 0; color:#64748b; font-size:14px; font-weight: 600;">Date of Issue:</td>
+
+                                                  <td align="right" style="padding: 0 0 12px 0; color:#0f172a; font-size:14px; font-weight: 800;">${selectedSim?.purchaseDate || new Date().toLocaleDateString()}</td>
+
+                                              </tr>
+
+                                              <tr>
+
+                                                  <td style="padding: 0 0 12px 0; color:#64748b; font-size:14px; font-weight: 600;">Registered Email:</td>
+
+                                                  <td align="right" style="padding: 0 0 12px 0; color:#077770; font-size:14px; font-weight: 800; text-decoration: none;">${selectedSim?.email || 'N/A'}</td>
+
+                                              </tr>
+
+                                              <tr>
+
+                                                  <td style="padding: 0 0 12px 0; color:#64748b; font-size:14px; font-weight: 600;">Order Status:</td>
+
+                                                  <td align="right" style="padding: 0 0 12px 0;">
+
+                                                      <span style="background-color: #ecfdf5; border: 1px solid #a7f3d0; color: #059669; padding: 4px 10px; border-radius: 9999px; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px;">${selectedSim?.order_status || 'COMPLETED'}</span>
+
+                                                  </td>
+
+                                              </tr>
+
+                                              <tr>
+
+                                                  <td style="padding: 0; color:#64748b; font-size:14px; font-weight: 600;">Payment Status:</td>
+
+                                                  <td align="right" style="padding: 0; color:#0f172a; font-size:14px; font-weight: 800;">${selectedSim?.payment_status || 'PAID'}</td>
+
+                                              </tr>
+
+                                          </table>
+
+                                      </td>
+
+                                  </tr>
+
+                              </table>
+
+                          </td>
+
+                      </tr>
+
+
+
+                      <!-- 🌟 Technical Specifications -->
+
+                      <tr>
+
+                          <td style="padding: 0 40px 24px 40px;">
+
+                              <table width="100%" cellpadding="0" cellspacing="0" border="0" style="border: 1px solid #f1f5f9; background-color: #ffffff; border-radius: 16px;">
+
+                                  <tr>
+
+                                      <td style="padding: 24px;">
+
+                                          <h3 style="margin: 0 0 20px 0; font-size: 11px; text-transform: uppercase; letter-spacing: 1.5px; font-weight: 800; color:#94a3b8; border-bottom: 1px solid #f1f5f9; padding-bottom: 12px;">Technical Specifications</h3>
+
+                                         
+
+                                          <table width="100%" cellpadding="0" cellspacing="0" border="0">
+
+                                              <tr>
+
+                                                  <td style="padding: 0 0 12px 0; color:#64748b; font-size:14px; font-weight: 600; width:40%;">Product:</td>
+
+                                                  <td align="right" style="padding: 0 0 12px 0; color:#0f172a; font-size:14px; font-weight: 800;">${selectedSim?.product_type || 'eSIM Plan'}</td>
+
+                                              </tr>
+
+                                              <tr>
+
+                                                  <td style="padding: 0 0 12px 0; color:#64748b; font-size:14px; font-weight: 600;">Destination:</td>
+
+                                                  <td align="right" style="padding: 0 0 12px 0; color:#0f172a; font-size:14px; font-weight: 800;">${selectedSim?.country_code || 'Global'}</td>
+
+                                              </tr>
+
+                                              <tr>
+
+                                                  <td style="padding: 0 0 12px 0; color:#64748b; font-size:14px; font-weight: 600;">Network Type:</td>
+
+                                                  <td align="right" style="padding: 0 0 12px 0; color:#0f172a; font-size:14px; font-weight: 800;">${selectedSim?.sim_type || 'eSIM'}</td>
+
+                                              </tr>
+
+                                              <tr>
+
+                                                  <td style="padding: 0 0 12px 0; color:#64748b; font-size:14px; font-weight: 600;">Payment Intent:</td>
+
+                                                  <td align="right" style="padding: 0 0 12px 0; color:#64748b; font-size:12px; font-family: monospace; font-weight: 600;">${selectedSim?.stripe_payment_intent_id || 'N/A'}</td>
+
+                                              </tr>
+
+                                              <tr>
+
+                                                  <td style="padding: 0; color:#64748b; font-size:14px; font-weight: 600;">Session ID:</td>
+
+                                                  <td align="right" style="padding: 0; color:#64748b; font-size:12px; font-family: monospace; font-weight: 600;">${selectedSim?.stripe_sessionId || 'N/A'}</td>
+
+                                              </tr>
+
+                                          </table>
+
+                                      </td>
+
+                                  </tr>
+
+                              </table>
+
+                          </td>
+
+                      </tr>
+
+
+
+                      <!-- 🌟 Activation Details & QR Code -->
+
+                      <tr>
+
+                          <td style="padding: 0 40px 24px 40px;">
+
+                              <table width="100%" cellpadding="0" cellspacing="0" border="0" style="border: 1px solid #f1f5f9; background-color: #ffffff; border-radius: 16px;">
+
+                                  <tr>
+
+                                      <td align="center" style="padding: 24px;">
+
+                                          <h3 style="margin: 0 0 20px 0; font-size: 11px; text-transform: uppercase; letter-spacing: 1.5px; font-weight: 800; color:#94a3b8; border-bottom: 1px solid #f1f5f9; padding-bottom: 12px; text-align: left;">Activation Details</h3>
+
+                                         
+
+                                          ${qrCodeDataUri ? `
+
+                                            <div style="margin-bottom: 24px;">
+
+                                                <img src="${qrCodeDataUri}" alt="QR Code" style="width: 150px; height: 150px; border-radius: 8px; border: 2px solid #e2e8f0;" />
+
+                                                <p style="margin-top: 12px; font-size: 14px; font-weight: 600; color: #475569;">Scan this QR Code to activate your eSIM</p>
+
+                                            </div>
+
+                                          ` : ''}
+
+
+
+                                          <table width="100%" cellpadding="0" cellspacing="0" border="0">
+
+                                              <tr>
+
+                                                  <td style="padding: 0 0 12px 0; color:#64748b; font-size:14px; font-weight: 600; width:40%; text-align: left;">ICCID:</td>
+
+                                                  <td align="right" style="padding: 0 0 12px 0; color:#0f172a; font-size:14px; font-weight: 800; word-break: break-all;">${selectedSim?.iccid || 'N/A'}</td>
+
+                                              </tr>
+
+                                              <tr>
+
+                                                  <td style="padding: 0 0 12px 0; color:#64748b; font-size:14px; font-weight: 600; width:40%; text-align: left;">Activation Code:</td>
+
+                                                  <td align="right" style="padding: 0 0 12px 0; color:#0f172a; font-size:14px; font-weight: 800; word-break: break-all;">${selectedSim?.activation_code || 'N/A'}</td>
+
+                                              </tr>
+
+                                              <tr>
+
+                                                  <td style="padding: 0 0 12px 0; color:#64748b; font-size:14px; font-weight: 600; width:40%; text-align: left;">MSISDN:</td>
+
+                                                  <td align="right" style="padding: 0 0 12px 0; color:#0f172a; font-size:14px; font-weight: 800;">${selectedSim?.msisdn || 'N/A'}</td>
+
+                                              </tr>
+
+                                          </table>
+
+                                      </td>
+
+                                  </tr>
+
+                              </table>
+
+                          </td>
+
+                      </tr>
+
+
+
+                      <!-- 🌟 Premium Alerts/Important Information -->
+
+                      <tr>
+
+                          <td style="padding: 0 40px 24px 40px;">
+
+                              <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#fff7ed; border: 1px solid #ffedd5; padding: 24px; border-radius: 16px;">
+
+                                  <tr>
+
+                                      <td>
+
+                                          <div style="color:#ea580c; font-size:11px; font-weight: 800; text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 12px;">Installation Guidelines</div>
+
+                                          <ul style="color:#78350f; font-size:14px; margin:0; padding-left: 20px; line-height:1.6; font-weight: 500;">
+
+                                              <li style="margin-bottom: 8px;">Secure a stable Wi-Fi connection prior to attempting installation.</li>
+
+                                              <li style="margin-bottom: 8px;">Your QR code may take a few minutes to generate and appear in your dashboard.</li>
+
+                                              <li style="margin-bottom: 8px;">Please verify your device is carrier-unlocked and eSIM compatible.</li>
+
+                                              <li>Retain this official receipt for your records.</li>
+
+                                          </ul>
+
+                                      </td>
+
+                                  </tr>
+
+                              </table>
+
+                          </td>
+
+                      </tr>
+
+
+
+                      <!-- 🌟 NEW: Contact Email & Phone -->
+
+                      <tr>
+
+                          <td align="center" style="padding: 0 40px 30px 40px;">
+
+                              <p style="margin: 0; color: #64748b; font-size: 14px; font-weight: 600;">
+
+                                  Need help? Reach our support concierge:
+
+                              </p>
+
+                              <p style="margin: 8px 0 0 0; color: #0f172a; font-size: 15px; font-weight: 800;">
+
+                                  <a href="mailto:care@simclaire.com" style="color: #077770; text-decoration: none;">care@simclaire.com</a>
+
+                                  &nbsp;|&nbsp;
+
+                                  <a href="tel:+14376056560" style="color: #077770; text-decoration: none;">+1 (437) 605-6560</a>
+
+                              </p>
+
+                          </td>
+
+                      </tr>
+
+
+
+                      <!-- 🌟 Footer -->
+
+                      <tr>
+
+                          <td align="center" style="background-color: #f8fafc; padding: 30px; border-top: 1px solid #f1f5f9;">
+
+                              <p style="margin: 0 0 8px 0; color: #94a3b8; font-size: 13px; font-weight: 600;">
+
+                                  &copy; 2026 SiM Claire. All rights reserved.
+
+                              </p>
+
+                          </td>
+
+                      </tr>
+
+
+
+                  </table>
+
+                 
+
+                  <!-- Extra space at the bottom for spacing -->
+
+                  <table width="100%" cellpadding="0" cellspacing="0" border="0">
+
+                      <tr><td height="40">&nbsp;</td></tr>
+
+                  </table>
+
+
+
+              </td>
+
+          </tr>
+
+      </table>
+
+    </div>
+
+  `;
+
+ 
+
+  document.body.appendChild(container);
+
+
+
+  try {
+
+    // Wait for DOM to fully paint the base64 QR code and text
+
+    await new Promise((resolve) => setTimeout(resolve, 400));
+
+
+
+    const canvas = await html2canvas(container, {
+
+      scale: 2,
+
+      useCORS: true,
+
+      logging: false
+
+    });
+
+   
+
+    const imgData = canvas.toDataURL("image/jpeg", 0.92);
+
+   
+
+    // 🌟 FIX 2: Dynamic PDF Dimensions!
+
+    // We set the width to 650pt (matching our container width)
+
+    // and let the height dynamically scale to match the canvas perfectly. No more clipping!
+
+    const pdfWidth = 650;
+
+    const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+
+
+
+    const pdf = new jsPDF({
+
+      orientation: "portrait",
+
+      unit: "pt",
+
+      format: [pdfWidth, pdfHeight], // Custom aspect ratio instead of 'a4'
+
+      compress: true
+
+    });
+
+
+
+    pdf.addImage(imgData, "JPEG", 0, 0, pdfWidth, pdfHeight);
+
+   
+
+    pdf.save(`SiM_Claire_Order_${selectedSim?.order_id || 'Receipt'}.pdf`);
+
+
+
+    alert("The high-quality PDF receipt has been downloaded. Please manually attach it to the email that is about to open.");
+
+
+
+    const subject = encodeURIComponent(`SiM Claire Activation Details - Order #${selectedSim?.order_id || 'N/A'}`);
+
+    const bodyText = `Hello,\n\nPlease find your official SiM Claire receipt and eSIM activation details (including your QR code) in the attached PDF.\n\nThank you!`;
+
+    const body = encodeURIComponent(bodyText);
+
+   
+
+    window.location.href = `mailto:${selectedSim?.email || ''}?subject=${subject}&body=${body}`;
+
+
+
+  } catch (error) {
+
+    console.error("Error generating HTML-to-PDF:", error);
+
+    alert("Failed to generate the document. Please try again.");
+
+  } finally {
+
+    document.body.removeChild(container);
+
+  }
+
+};
 
   // --- 🌟 NEW: Initialize Edit Form ---
   const handleOpenEdit = () => {
@@ -278,7 +833,12 @@ export default function AdminUsersPanel() {
   const handleUpdateFailedOrder = async (e) => {
     e.preventDefault();
     setIsSubmittingEdit(true);
-
+const enteredPassword = window.prompt("Enter admin PIN to update the order. This cannot be undone:");
+    
+    if (enteredPassword !== process.env.NEXT_PUBLIC_ADMIN_PIN) {
+      alert("Incorrect PIN. Order update aborted.");
+      return; // Stop execution entirely
+    }
     const payload = {
       order_id: selectedSim.order_id,
       lpa: editFormData.lpa,
@@ -294,7 +854,7 @@ export default function AdminUsersPanel() {
 
     try {
       // ⚠️ UPDATE THIS URL TO MATCH YOUR ACTUAL BACKEND ENDPOINT
-      await axios.post(`${process.env.NEXT_PUBLIC_API_URL}/admin/order/manual-fulfillment`, payload, {
+      await axios.post(`${process.env.NEXT_PUBLIC_API_URL}/admin/orders/manual-provision`, payload, {
         headers: { Authorization: `Bearer ${adminToken}` }
       });
 
@@ -539,7 +1099,7 @@ export default function AdminUsersPanel() {
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center p-6 border-b border-gray-100 bg-gray-50/80 gap-4 shrink-0">
                 <div>
                   <h3 className="text-2xl font-extrabold text-gray-900 tracking-tight">
-                    {isEditingOrder ? "Edit Manual Fulfillment" : "Deep eSIM Record"}
+                    {isEditingOrder ? "Edit Manual Fulfillment" : "eSIM Record"}
                   </h3>
                   {!isEditingOrder && (
                     <p className="text-sm text-gray-500 mt-1 font-medium flex items-center gap-2">
@@ -550,7 +1110,7 @@ export default function AdminUsersPanel() {
                 <div className="flex items-center gap-3">
                   
                   {/* 🌟 NEW: Edit Failed Order Button */}
-                  {!isEditingOrder && selectedSim.order_status?.toUpperCase() === "FAILED" && (
+                  {!isEditingOrder  && (
                     <button 
                       onClick={handleOpenEdit}
                       className="flex items-center gap-2 px-4 py-2 bg-orange-100 text-orange-700 border border-orange-200 font-bold text-sm rounded-xl hover:bg-orange-200 transition-colors shadow-sm"
@@ -587,7 +1147,7 @@ export default function AdminUsersPanel() {
                 {isDetailsLoading || selectedSim.loading ? (
                   <div className="py-20 flex flex-col items-center justify-center text-[#077770]">
                     <div className="w-10 h-10 border-4 border-current border-t-transparent rounded-full animate-spin mb-4"></div>
-                    <p className="font-bold">Fetching deep telecom & stripe records...</p>
+                    <p className="font-bold">Fetching  telecom & stripe records...</p>
                   </div>
                 ) : detailsError ? (
                   <div className="py-10 text-center text-red-500 font-bold bg-red-50 rounded-xl border border-red-100">{detailsError}</div>

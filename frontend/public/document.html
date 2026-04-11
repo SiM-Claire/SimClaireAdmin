@@ -1,0 +1,1841 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SiMClare Backend API Documentation</title>
+  <style>
+    :root {
+      --bg: #f5f7f8;
+      --panel: #ffffff;
+      --panel-soft: #f8fafb;
+      --border: #d9e1e5;
+      --text: #182126;
+      --muted: #5a6973;
+      --accent: #0f766e;
+      --accent-soft: #e7f6f4;
+      --danger: #b42318;
+      --danger-soft: #fef3f2;
+      --warn: #b54708;
+      --warn-soft: #fffaeb;
+      --shadow: 0 8px 30px rgba(24, 33, 38, 0.06);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.55;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 300px minmax(0, 1fr);
+      min-height: 100vh;
+    }
+
+    .sidebar {
+      position: sticky;
+      top: 0;
+      align-self: start;
+      height: 100vh;
+      overflow-y: auto;
+      background: #10191d;
+      color: #edf3f5;
+      padding: 24px 18px 32px;
+    }
+
+    .sidebar h1 {
+      margin: 0 0 8px;
+      font-size: 1.35rem;
+      line-height: 1.2;
+    }
+
+    .sidebar p {
+      margin: 0 0 16px;
+      color: #b8c8cf;
+      font-size: 0.94rem;
+    }
+
+    .search {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1px solid #314149;
+      border-radius: 10px;
+      background: #162126;
+      color: #edf3f5;
+      margin-bottom: 18px;
+    }
+
+    .nav-group {
+      margin-bottom: 20px;
+    }
+
+    .nav-group h2 {
+      margin: 0 0 8px;
+      font-size: 0.78rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: #8fb1bc;
+    }
+
+    .nav-group a {
+      display: block;
+      color: #edf3f5;
+      text-decoration: none;
+      padding: 6px 8px;
+      border-radius: 8px;
+      font-size: 0.92rem;
+      margin-bottom: 4px;
+    }
+
+    .nav-group a:hover,
+    .nav-group a:focus {
+      background: rgba(255, 255, 255, 0.08);
+      outline: none;
+    }
+
+    main {
+      padding: 28px;
+    }
+
+    .hero,
+    .note,
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      box-shadow: var(--shadow);
+    }
+
+    .hero {
+      padding: 24px;
+      margin-bottom: 18px;
+    }
+
+    .hero h2 {
+      margin: 0 0 10px;
+      font-size: 1.7rem;
+    }
+
+    .hero p,
+    .note p {
+      margin: 0;
+      color: var(--muted);
+    }
+
+    .note {
+      padding: 18px 20px;
+      margin-bottom: 18px;
+      background: var(--panel-soft);
+    }
+
+    .section-title {
+      margin: 30px 0 14px;
+      font-size: 1.25rem;
+    }
+
+    .grid {
+      display: grid;
+      gap: 16px;
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 14px;
+      margin-bottom: 18px;
+    }
+
+    .stat-card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      box-shadow: var(--shadow);
+      padding: 18px;
+      text-align: center;
+    }
+
+    .stat-number {
+      font-size: 1.9rem;
+      font-weight: 800;
+      color: var(--text);
+      margin-bottom: 4px;
+    }
+
+    .stat-label {
+      color: var(--muted);
+      font-size: 0.92rem;
+    }
+
+    .controls {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      box-shadow: var(--shadow);
+      padding: 18px;
+      margin-bottom: 18px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      align-items: center;
+    }
+
+    .search-box {
+      flex: 1 1 280px;
+    }
+
+    .search-box input {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      font-size: 0.95rem;
+      background: var(--panel-soft);
+      color: var(--text);
+    }
+
+    .search-box input:focus {
+      outline: none;
+      border-color: var(--accent);
+    }
+
+    .filter-buttons {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .filter-btn {
+      padding: 9px 12px;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      background: var(--panel);
+      color: var(--text);
+      cursor: pointer;
+      font-size: 0.88rem;
+      font-weight: 600;
+    }
+
+    .filter-btn.active,
+    .filter-btn:hover {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: white;
+    }
+
+    .results-bar {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      box-shadow: var(--shadow);
+      padding: 14px 18px;
+      margin-bottom: 18px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      justify-content: space-between;
+      color: var(--muted);
+    }
+
+    .results-bar strong {
+      color: var(--text);
+    }
+
+    .card {
+      padding: 18px 20px;
+    }
+
+    .route-header {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+
+    .method {
+      font-weight: 700;
+      font-size: 0.82rem;
+      padding: 5px 9px;
+      border-radius: 999px;
+      color: white;
+      background: var(--accent);
+    }
+
+    .path {
+      font-family: Consolas, Monaco, monospace;
+      font-size: 1rem;
+      word-break: break-word;
+    }
+
+    .summary {
+      margin: 8px 0 14px;
+      color: var(--muted);
+    }
+
+    .meta {
+      display: grid;
+      gap: 10px;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      margin-bottom: 14px;
+    }
+
+    .meta-block {
+      background: var(--panel-soft);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 12px;
+    }
+
+    .meta-block h4 {
+      margin: 0 0 6px;
+      font-size: 0.9rem;
+    }
+
+    .meta-block p,
+    .meta-block li {
+      color: var(--muted);
+      font-size: 0.93rem;
+    }
+
+    .meta-block ul {
+      margin: 0;
+      padding-left: 18px;
+    }
+
+    .subsection {
+      margin-top: 14px;
+    }
+
+    .subsection h4 {
+      margin: 0 0 8px;
+      font-size: 0.95rem;
+    }
+
+    pre {
+      margin: 0;
+      padding: 12px;
+      overflow-x: auto;
+      border-radius: 12px;
+      background: #0f171b;
+      color: #e9f2f5;
+      font-size: 0.86rem;
+    }
+
+    code {
+      font-family: Consolas, Monaco, monospace;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+      font-size: 0.93rem;
+    }
+
+    th,
+    td {
+      text-align: left;
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--border);
+      vertical-align: top;
+    }
+
+    th {
+      background: var(--panel-soft);
+    }
+
+    .pill {
+      display: inline-block;
+      padding: 4px 8px;
+      border-radius: 999px;
+      font-size: 0.78rem;
+      font-weight: 700;
+      background: var(--accent-soft);
+      color: var(--accent);
+    }
+
+    .error-list {
+      display: grid;
+      gap: 8px;
+    }
+
+    .error-item {
+      border: 1px solid var(--border);
+      border-left: 4px solid var(--danger);
+      border-radius: 10px;
+      padding: 10px 12px;
+      background: var(--danger-soft);
+    }
+
+    .error-item.warn {
+      border-left-color: var(--warn);
+      background: var(--warn-soft);
+    }
+
+    .error-item strong {
+      display: block;
+      margin-bottom: 3px;
+    }
+
+    .muted {
+      color: var(--muted);
+    }
+
+    .hidden {
+      display: none;
+    }
+
+    .no-results {
+      text-align: center;
+      padding: 26px 18px;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      box-shadow: var(--shadow);
+      color: var(--muted);
+      margin-top: 8px;
+    }
+
+    @media (max-width: 980px) {
+      .layout {
+        grid-template-columns: 1fr;
+      }
+
+      .sidebar {
+        position: static;
+        height: auto;
+      }
+
+      main {
+        padding: 18px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="layout">
+    <aside class="sidebar">
+      <h1>SiMClare Backend</h1>
+      <p>Internal API reference generated from the current codebase snapshot.</p>
+      <input id="routeSearch" class="search" type="search" placeholder="Search route, file, error, flow">
+
+      <div class="nav-group">
+        <h2>Overview</h2>
+        <a href="#overview">Project Overview</a>
+        <a href="#response-shapes">Response Shapes</a>
+        <a href="#auth-model">Auth Model</a>
+        <a href="#error-model">Error Model</a>
+      </div>
+
+      <div class="nav-group">
+        <h2>System</h2>
+        <a href="#route-root">GET /</a>
+        <a href="#route-health">GET /health</a>
+        <a href="#route-stripe-webhook">POST /api/stripe/webhook</a>
+      </div>
+
+      <div class="nav-group">
+        <h2>Auth</h2>
+        <a href="#route-auth-login">POST /api/auth/login</a>
+        <a href="#route-auth-google">POST /api/auth/google</a>
+        <a href="#route-auth-verify-login">POST /api/auth/verify/login</a>
+        <a href="#route-auth-logout">POST /api/auth/logout</a>
+        <a href="#route-auth-signup">POST /api/auth/signup</a>
+        <a href="#route-auth-forgot-otp">POST /api/auth/password/forgot/otp</a>
+        <a href="#route-auth-password-reset">POST /api/auth/password/reset</a>
+        <a href="#route-auth-otp-verify">POST /api/auth/otp/verify</a>
+        <a href="#route-auth-otp-resend">POST /api/auth/otp/resend</a>
+      </div>
+
+      <div class="nav-group">
+        <h2>Catalog</h2>
+        <a href="#route-device-check">POST /api/device/check-compatibility</a>
+        <a href="#route-destination-list">GET /api/get/all-destination</a>
+        <a href="#route-sim-by-destination">GET /api/get/sims/:destinationid</a>
+        <a href="#route-exchange-rates">POST /api/get/exchangeRates</a>
+      </div>
+
+      <div class="nav-group">
+        <h2>User Purchase</h2>
+        <a href="#route-promocode-validate">POST /api/validate/promocode</a>
+        <a href="#route-checkout-init">POST /api/init</a>
+        <a href="#route-customer-data">POST /api/post/customer/data</a>
+        <a href="#route-customer-data-type3">POST /api/post/customer/data/type3/queue</a>
+        <a href="#route-user-history">GET /api/get/user/history</a>
+        <a href="#route-user-purchase-history">GET /api/get/user/esim/purchase/history</a>
+      </div>
+
+      <div class="nav-group">
+        <h2>Admin</h2>
+        <a href="#route-admin-sim-multiplier-update">POST /api/admin/update/sim-multiplier</a>
+        <a href="#route-admin-sim-multiplier-delete">POST /api/admin/delete/sim-multiplier</a>
+        <a href="#route-admin-sim-multiplier-list">GET /api/admin/get/sim-multiplier</a>
+        <a href="#route-admin-userdata">POST /api/admin/get/userdata</a>
+        <a href="#route-admin-payload-email">POST /api/admin/get/frontend-payload</a>
+        <a href="#route-admin-payload-all">GET /api/admin/get/frontend-payload/all</a>
+        <a href="#route-admin-balance">GET /api/admin/get/balance</a>
+        <a href="#route-admin-esim-history">GET /api/admin/get/user/esimHistorybyId/:esim_history_id</a>
+        <a href="#route-admin-promocode-create">POST /api/admin/promocode</a>
+        <a href="#route-admin-promocode-list">GET /api/admin/promocode</a>
+        <a href="#route-admin-promocode-delete">DELETE /api/admin/promocode/:id</a>
+        <a href="#route-admin-tax-status">GET /api/admin/tax-status</a>
+        <a href="#route-admin-tax-create">POST /api/admin/create-tax-country</a>
+        <a href="#route-admin-tax-toggle">POST /api/admin/toggle-country</a>
+        <a href="#route-admin-tax-update">POST /api/admin/update-tax-country</a>
+        <a href="#route-admin-device-list">GET /api/admin/device-phones</a>
+        <a href="#route-admin-device-single">GET /api/admin/device-phones/:id</a>
+        <a href="#route-admin-device-create">POST /api/admin/device-phones</a>
+        <a href="#route-admin-device-update">PUT /api/admin/device-phones/:id</a>
+        <a href="#route-admin-device-delete">DELETE /api/admin/device-phones/:id</a>
+        <a href="#route-admin-security-sessions">GET /api/admin/security/user-sessions</a>
+        <a href="#route-admin-manual-provision">POST /api/admin/orders/manual-provision</a>
+        <a href="#route-admin-analytics">GET /api/admin/analytics/overview</a>
+      </div>
+
+      <div class="nav-group">
+        <h2>B2B</h2>
+        <a href="#route-b2b-create">POST /api/b2b/leads</a>
+        <a href="#route-b2b-list">GET /api/b2b/leads</a>
+        <a href="#route-b2b-update">PATCH /api/b2b/leads/:id</a>
+      </div>
+    </aside>
+
+    <main>
+      <section id="overview" class="hero">
+        <h2>SiMClare Backend API Documentation</h2>
+        <p>
+          This page documents the backend exactly as the current code behaves. It is meant for frontend and support teams:
+          each route includes what it does, which files control it, expected request shape, actual response shape, auth
+          requirement, and what specific errors mean.
+        </p>
+      </section>
+
+      <div class="stats">
+        <div class="stat-card">
+          <div class="stat-number" id="totalRoutes">0</div>
+          <div class="stat-label">Total Routes</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-number" id="authRoutes">0</div>
+          <div class="stat-label">Auth Routes</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-number" id="adminRoutes">0</div>
+          <div class="stat-label">Admin Routes</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-number" id="publicRoutes">0</div>
+          <div class="stat-label">Public Routes</div>
+        </div>
+      </div>
+
+      <div class="controls">
+        <div class="search-box">
+          <input id="routeSearchMain" type="search" placeholder="Search routes by path, method, or function...">
+        </div>
+        <div class="filter-buttons">
+          <button class="filter-btn active" data-filter="all">All</button>
+          <button class="filter-btn" data-filter="GET">GET</button>
+          <button class="filter-btn" data-filter="POST">POST</button>
+          <button class="filter-btn" data-filter="PUT">PUT</button>
+          <button class="filter-btn" data-filter="DELETE">DELETE</button>
+          <button class="filter-btn" data-filter="PATCH">PATCH</button>
+          <button class="filter-btn" data-filter="admin">Admin Only</button>
+          <button class="filter-btn" data-filter="auth">Auth Required</button>
+        </div>
+      </div>
+
+      <div class="results-bar">
+        <div><strong id="visibleCount">0</strong> routes visible</div>
+        <div id="activeFilterLabel">Filter: All routes</div>
+      </div>
+
+      <section id="response-shapes" class="note">
+        <p>
+          Important: the project does not use a single response envelope everywhere. The frontend should read the route docs
+          for the exact shape.
+        </p>
+      </section>
+
+      <div class="grid">
+        <article class="card">
+          <h3>Primary success envelope used by many controllers</h3>
+          <pre><code>{
+  "status": 200,
+  "message": "some message",
+  "data": {}
+}</code></pre>
+          <p class="muted">Implemented by <code>utils/errorHandeler.js</code> through <code>handelResponse()</code>.</p>
+        </article>
+
+        <article class="card">
+          <h3>Auth middleware and a few controllers use a different shape</h3>
+          <pre><code>{
+  "success": true,
+  "message": "User verified",
+  "user": {
+    "id": 42,
+    "email": "buyer@example.com"
+  }
+}</code></pre>
+          <p class="muted">
+            Seen in <code>middlewares/clientAuth.js</code>, <code>services/verifyUserLogin.js</code>, and <code>services/logout.js</code>.
+          </p>
+        </article>
+
+        <article class="card">
+          <h3>Global error handler envelope</h3>
+          <pre><code>{
+  "status": "fail",
+  "message": "Invalid Google ID token."
+}</code></pre>
+          <p class="muted">
+            Returned by <code>middlewares/error_handeler.js</code> for thrown errors, especially <code>AppError</code> and unknown server failures.
+          </p>
+        </article>
+      </div>
+
+      <h2 id="auth-model" class="section-title">Auth Model</h2>
+      <div class="grid">
+        <article class="card">
+          <h3>User auth</h3>
+          <table>
+            <tr><th>Mechanism</th><td>HTTP cookie named <code>token</code></td></tr>
+            <tr><th>Middleware</th><td><code>middlewares/clientAuth.js</code></td></tr>
+            <tr><th>Missing token</th><td><code>401</code> with <code>{ "success": false, "message": "Authentication required" }</code></td></tr>
+            <tr><th>Expired token</th><td><code>401</code> with <code>Access token expired</code></td></tr>
+            <tr><th>Invalid token</th><td><code>403</code> with <code>Invalid token</code></td></tr>
+          </table>
+        </article>
+
+        <article class="card">
+          <h3>Admin auth</h3>
+          <table>
+            <tr><th>Mechanism</th><td><code>Authorization: Bearer &lt;jwt&gt;</code></td></tr>
+            <tr><th>Middleware</th><td><code>middlewares/adminAuth.js</code></td></tr>
+            <tr><th>Missing bearer token</th><td><code>401</code> with <code>Admin authentication required.</code></td></tr>
+            <tr><th>Expired bearer token</th><td><code>401</code> with <code>Admin token expired.</code></td></tr>
+            <tr><th>Invalid token / wrong role</th><td><code>403</code> with <code>Invalid admin token.</code></td></tr>
+          </table>
+        </article>
+      </div>
+
+      <h2 id="error-model" class="section-title">Error Model</h2>
+      <div class="card">
+        <table>
+          <tr>
+            <th>Status</th>
+            <th>What it means in this project</th>
+          </tr>
+          <tr>
+            <td><code>400</code></td>
+            <td>Bad input, missing required field, invalid type, invalid route parameter, unsupported value, or business rule failure.</td>
+          </tr>
+          <tr>
+            <td><code>401</code></td>
+            <td>Authentication missing or expired. Some auth flows also use this for deliberately generic credential failures.</td>
+          </tr>
+          <tr>
+            <td><code>403</code></td>
+            <td>Authenticated but not allowed, compliance block, or invalid token role/scope.</td>
+          </tr>
+          <tr>
+            <td><code>404</code></td>
+            <td>Requested record not found. A few legacy routes also use it for missing input, so check route-specific notes.</td>
+          </tr>
+          <tr>
+            <td><code>409</code></td>
+            <td>Conflict: duplicate resource, order already queued, or current order state does not allow the requested action.</td>
+          </tr>
+          <tr>
+            <td><code>429</code></td>
+            <td>Rate limit hit. Envelope is <code>{ "status": "fail", "message": "Too many requests, please try again later." }</code></td>
+          </tr>
+          <tr>
+            <td><code>500</code></td>
+            <td>Server/config/database/internal failure. Global handler hides most internal details and usually returns <code>An internal server error occurred.</code></td>
+          </tr>
+          <tr>
+            <td><code>503</code></td>
+            <td>Service temporarily unavailable, mainly used during checkout if provider/admin balance conditions are not satisfied.</td>
+          </tr>
+        </table>
+      </div>
+
+      <h2 class="section-title route-section-title">System Routes</h2>
+      <div class="grid route-section-grid">
+        <article id="route-root" class="card route-card" data-search="get / root health server running src/app.js">
+          <div class="route-header">
+            <span class="method">GET</span>
+            <span class="path">/</span>
+          </div>
+          <p class="summary">Simple root probe. Returns HTML text to confirm the server process is up.</p>
+          <div class="meta">
+            <div class="meta-block">
+              <h4>Key files</h4>
+              <ul><li><code>src/app.js</code></li></ul>
+            </div>
+            <div class="meta-block">
+              <h4>Success response</h4>
+              <p>Plain HTML string: <code>&lt;h1&gt;server is running&lt;/h1&gt;</code></p>
+            </div>
+          </div>
+        </article>
+
+        <article id="route-health" class="card route-card" data-search="get /health health db query rate limit src/app.js">
+          <div class="route-header">
+            <span class="method">GET</span>
+            <span class="path">/health</span>
+          </div>
+          <p class="summary">Checks database reachability using <code>SELECT 1</code>. Rate limited to 6 requests per 5 minutes.</p>
+          <div class="meta">
+            <div class="meta-block">
+              <h4>Key files</h4>
+              <ul><li><code>src/app.js</code></li><li><code>config/db.js</code></li></ul>
+            </div>
+            <div class="meta-block">
+              <h4>Success response</h4>
+              <pre><code>{
+  "status": "ok",
+  "database": "active",
+  "timestamp": "2026-04-11T..."
+}</code></pre>
+            </div>
+          </div>
+          <div class="error-list">
+            <div class="error-item warn">
+              <strong>500</strong>
+              DB is unreachable or sleeping. Response body uses <code>{ status: "error", database: "sleeping or unreachable" }</code>.
+            </div>
+            <div class="error-item warn">
+              <strong>429</strong>
+              Health route rate limit exceeded.
+            </div>
+          </div>
+        </article>
+
+        <article id="route-stripe-webhook" class="card route-card" data-search="post /api/stripe/webhook stripe webhook checkout session payment verification raw body">
+          <div class="route-header">
+            <span class="method">POST</span>
+            <span class="path">/api/stripe/webhook</span>
+          </div>
+          <p class="summary">
+            Stripe webhook endpoint. Verifies signature with raw request body, updates payment/order state, marks promo usage,
+            records tax details, and queues eSIM provisioning after payment succeeds.
+          </p>
+          <div class="meta">
+            <div class="meta-block">
+              <h4>Key files</h4>
+              <ul>
+                <li><code>src/app.js</code></li>
+                <li><code>stripe/stripeWebhook.js</code></li>
+                <li><code>utils/Queues/purchaseQueueModel.js</code></li>
+                <li><code>services/type3TransientPayload.js</code></li>
+              </ul>
+            </div>
+            <div class="meta-block">
+              <h4>Request notes</h4>
+              <p>Must receive Stripe raw JSON body. Do not send normal parsed JSON from manual clients unless you are reproducing Stripe exactly.</p>
+            </div>
+            <div class="meta-block">
+              <h4>Typical success response</h4>
+              <pre><code>{
+  "received": true
+}</code></pre>
+            </div>
+          </div>
+          <div class="error-list">
+            <div class="error-item">
+              <strong>400</strong>
+              <code>Webhook verification failed</code> means the Stripe signature or raw body is invalid.
+            </div>
+            <div class="error-item warn">
+              <strong>Side effect note</strong>
+              This route can silently accept already processed or partially irrelevant events and still return <code>{ received: true }</code> for idempotency.
+            </div>
+          </div>
+        </article>
+      </div>
+
+      <h2 class="section-title route-section-title">Auth Routes</h2>
+      <div class="grid route-section-grid">
+        <article id="route-auth-login" class="card route-card" data-search="post /api/auth/login login email password cookie token invalid email password">
+          <div class="route-header">
+            <span class="method">POST</span>
+            <span class="path">/api/auth/login</span>
+          </div>
+          <p class="summary">Logs a user in, sets the <code>token</code> cookie, and records the user session audit row.</p>
+          <div class="meta">
+            <div class="meta-block">
+              <h4>Route map / file flow</h4>
+              <ul>
+                <li><code>routes/routes.js</code></li>
+                <li><code>controllers/userLogin.js</code></li>
+                <li><code>utils/authValidation.js</code></li>
+                <li><code>models/models.userLoginService.js</code></li>
+                <li><code>models/models.userSessions.js</code></li>
+                <li><code>utils/authCookieOptions.js</code></li>
+              </ul>
+            </div>
+            <div class="meta-block">
+              <h4>Rate limit</h4>
+              <p>10 requests per 15 minutes</p>
+            </div>
+            <div class="meta-block">
+              <h4>Request body</h4>
+              <pre><code>{
+  "email": "user@example.com",
+  "password": "LongEnough123!"
+}</code></pre>
+            </div>
+          </div>
+          <div class="subsection">
+            <h4>Success response</h4>
+            <pre><code>{
+  "status": "success",
+  "message": "user looged in successfuly"
+}</code></pre>
+          </div>
+          <div class="error-list">
+            <div class="error-item">
+              <strong>400</strong>
+              Payload shape is invalid before auth is attempted. Example: blank email, non-string password, or too-short password per validator.
+            </div>
+            <div class="error-item">
+              <strong>401</strong>
+              <code>Invalid email or password</code> is deliberately generic. It covers wrong email, wrong password, and unverified email state.
+            </div>
+            <div class="error-item warn">
+              <strong>429</strong>
+              Too many login attempts inside the route limiter window.
+            </div>
+          </div>
+        </article>
+
+        <article id="route-auth-google" class="card route-card" data-search="post /api/auth/google google admin login idToken allowlist bearer admin token">
+          <div class="route-header">
+            <span class="method">POST</span>
+            <span class="path">/api/auth/google</span>
+          </div>
+          <p class="summary">Authenticates an admin via Google ID token, verifies allowlist membership, and returns an admin JWT.</p>
+          <div class="meta">
+            <div class="meta-block">
+              <h4>Route map / file flow</h4>
+              <ul>
+                <li><code>routes/routes.js</code></li>
+                <li><code>controllers/auth/googleAdminAuth.js</code></li>
+                <li><code>utils/Apperror.js</code></li>
+              </ul>
+            </div>
+            <div class="meta-block">
+              <h4>Request body</h4>
+              <pre><code>{
+  "idToken": "google-id-token"
+}</code></pre>
+            </div>
+            <div class="meta-block">
+              <h4>Success response</h4>
+              <pre><code>{
+  "status": "success",
+  "token": "admin-jwt"
+}</code></pre>
+            </div>
+          </div>
+          <div class="error-list">
+            <div class="error-item">
+              <strong>400</strong>
+              <code>Google ID token is required.</code>
+            </div>
+            <div class="error-item">
+              <strong>401</strong>
+              Invalid, expired, or unverifiable Google ID token.
+            </div>
+            <div class="error-item">
+              <strong>403</strong>
+              <code>Access denied.</code> means the Google email is valid but not present in <code>ADMIN_EMAILS</code> allowlist.
+            </div>
+            <div class="error-item warn">
+              <strong>500</strong>
+              Admin auth env configuration is missing.
+            </div>
+          </div>
+        </article>
+
+        <article id="route-auth-verify-login" class="card route-card" data-search="post /api/auth/verify/login verify cookie user token">
+          <div class="route-header">
+            <span class="method">POST</span>
+            <span class="path">/api/auth/verify/login</span>
+          </div>
+          <p class="summary">Validates the user cookie and returns decoded user info. Useful for frontend session bootstrap.</p>
+          <div class="meta">
+            <div class="meta-block">
+              <h4>Key files</h4>
+              <ul><li><code>routes/routes.js</code></li><li><code>services/verifyUserLogin.js</code></li></ul>
+            </div>
+            <div class="meta-block">
+              <h4>Request</h4>
+              <p>No body required. Needs cookie <code>token</code>.</p>
+            </div>
+            <div class="meta-block">
+              <h4>Success response</h4>
+              <pre><code>{
+  "success": true,
+  "message": "User verified",
+  "user": {
+    "id": 42,
+    "email": "buyer@example.com"
+  }
+}</code></pre>
+            </div>
+          </div>
+          <div class="error-list">
+            <div class="error-item"><strong>401</strong> Missing cookie or expired cookie.</div>
+            <div class="error-item"><strong>403</strong> Cookie exists but JWT is invalid.</div>
+          </div>
+        </article>
+
+        <article id="route-auth-logout" class="card route-card" data-search="post /api/auth/logout clear cookie token logout">
+          <div class="route-header">
+            <span class="method">POST</span>
+            <span class="path">/api/auth/logout</span>
+          </div>
+          <p class="summary">Clears the user auth cookie. Does not require a request body.</p>
+          <div class="meta">
+            <div class="meta-block">
+              <h4>Key files</h4>
+              <ul><li><code>routes/routes.js</code></li><li><code>services/logout.js</code></li><li><code>utils/authCookieOptions.js</code></li></ul>
+            </div>
+            <div class="meta-block">
+              <h4>Success response</h4>
+              <pre><code>{
+  "success": true,
+  "message": "Logout successful"
+}</code></pre>
+            </div>
+          </div>
+        </article>
+
+        <article id="route-auth-signup" class="card route-card" data-search="post /api/auth/signup signup name email phone password">
+          <div class="route-header">
+            <span class="method">POST</span>
+            <span class="path">/api/auth/signup</span>
+          </div>
+          <p class="summary">Creates a user after payload validation, email validation, password strength checks, and phone normalization rules.</p>
+          <div class="meta">
+            <div class="meta-block">
+              <h4>Route map / file flow</h4>
+              <ul>
+                <li><code>routes/routes.js</code></li>
+                <li><code>controllers/userSignup.js</code></li>
+                <li><code>utils/authValidation.js</code></li>
+                <li><code>utils/emailValidator.js</code></li>
+                <li><code>Orchestors/Orchestrator.Signup.js</code></li>
+              </ul>
+            </div>
+            <div class="meta-block">
+              <h4>Rate limit</h4>
+              <p>8 requests per 15 minutes</p>
+            </div>
+            <div class="meta-block">
+              <h4>Request body</h4>
+              <pre><code>{
+  "name": "Tester",
+  "email": "good@example.com",
+  "password": "CorrectHorseBatteryStaple123!",
+  "phone": "+14155552671"
+}</code></pre>
+            </div>
+          </div>
+          <div class="subsection">
+            <h4>Success response</h4>
+            <pre><code>{
+  "status": 201,
+  "message": "User Created Successfully",
+  "data": { "user_id": 101 }
+}</code></pre>
+          </div>
+          <div class="error-list">
+            <div class="error-item"><strong>400</strong> Invalid payload, invalid email, weak password, short password, or phone not in E.164 format.</div>
+            <div class="error-item warn"><strong>429</strong> Signup rate limit exceeded.</div>
+          </div>
+        </article>
+
+        <article id="route-auth-forgot-otp" class="card route-card" data-search="post /api/auth/password/forgot/otp forgot password otp request">
+          <div class="route-header">
+            <span class="method">POST</span>
+            <span class="path">/api/auth/password/forgot/otp</span>
+          </div>
+          <p class="summary">Starts forgot-password flow and delegates OTP generation/email work to the forgot-password orchestrator.</p>
+          <div class="meta">
+            <div class="meta-block">
+              <h4>Key files</h4>
+              <ul><li><code>controllers/forgotPassword.js</code></li><li><code>Orchestors/Orchestrator.Forgotpassword.js</code></li></ul>
+            </div>
+            <div class="meta-block">
+              <h4>Request body</h4>
+              <pre><code>{ "email": "user@example.com" }</code></pre>
+            </div>
+            <div class="meta-block">
+              <h4>Success response</h4>
+              <pre><code>{
+  "status": 200,
+  "message": "OTP sent to mail",
+  "data": {}
+}</code></pre>
+            </div>
+          </div>
+          <div class="error-list">
+            <div class="error-item"><strong>400</strong> Email was not supplied in the request body.</div>
+            <div class="error-item warn"><strong>429</strong> Forgot-password OTP limiter exceeded.</div>
+          </div>
+        </article>
+
+        <article id="route-auth-password-reset" class="card route-card" data-search="post /api/auth/password/reset reset password otp newPass">
+          <div class="route-header">
+            <span class="method">POST</span>
+            <span class="path">/api/auth/password/reset</span>
+          </div>
+          <p class="summary">Resets password after OTP verification and password-strength validation.</p>
+          <div class="meta">
+            <div class="meta-block">
+              <h4>Key files</h4>
+              <ul>
+                <li><code>controllers/forgetPassword.js</code></li>
+                <li><code>models/models.verifyOtp.js</code></li>
+                <li><code>models/forgetPasswordService.js</code></li>
+              </ul>
+            </div>
+            <div class="meta-block">
+              <h4>Request body</h4>
+              <pre><code>{
+  "email": "user@example.com",
+  "otp": "123456",
+  "newPass": "CorrectHorseBatteryStaple123!"
+}</code></pre>
+            </div>
+            <div class="meta-block">
+              <h4>Success response</h4>
+              <pre><code>{
+  "status": 200,
+  "message": "Password reset successful",
+  "data": null
+}</code></pre>
+            </div>
+          </div>
+          <div class="error-list">
+            <div class="error-item"><strong>400</strong> Missing fields, weak password, or short password.</div>
+            <div class="error-item warn"><strong>500</strong> Password hash/update failed after OTP success.</div>
+          </div>
+        </article>
+
+        <article id="route-auth-otp-verify" class="card route-card" data-search="post /api/auth/otp/verify verify otp email">
+          <div class="route-header">
+            <span class="method">POST</span>
+            <span class="path">/api/auth/otp/verify</span>
+          </div>
+          <p class="summary">Verifies an OTP for the supplied email.</p>
+          <div class="meta">
+            <div class="meta-block">
+              <h4>Key files</h4>
+              <ul><li><code>controllers/verifyOtp.js</code></li><li><code>models/models.verifyOtp.js</code></li></ul>
+            </div>
+            <div class="meta-block">
+              <h4>Request body</h4>
+              <pre><code>{
+  "email": "user@example.com",
+  "otp": "123456"
+}</code></pre>
+            </div>
+            <div class="meta-block">
+              <h4>Success response</h4>
+              <pre><code>{
+  "status": 200,
+  "message": "Otp Verified",
+  "data": {
+    "success": true,
+    "token": "otp-ok"
+  }
+}</code></pre>
+            </div>
+          </div>
+          <div class="error-list">
+            <div class="error-item"><strong>401</strong> Missing <code>otp</code> or <code>email</code>. This route uses 401 instead of 400 for missing details.</div>
+            <div class="error-item"><strong>400</strong> OTP verification failed. Frontend should display the backend message, for example <code>OTP invalid</code>.</div>
+          </div>
+        </article>
+
+        <article id="route-auth-otp-resend" class="card route-card" data-search="post /api/auth/otp/resend resend otp email invalid email 404">
+          <div class="route-header">
+            <span class="method">POST</span>
+            <span class="path">/api/auth/otp/resend</span>
+          </div>
+          <p class="summary">Resends email verification OTP to an existing signup email.</p>
+          <div class="meta">
+            <div class="meta-block">
+              <h4>Route map / file flow</h4>
+              <ul>
+                <li><code>controllers/resendOtp.js</code></li>
+                <li><code>utils/emailValidator.js</code></li>
+                <li><code>models/ismailExistService.js</code></li>
+                <li><code>services/otpGrenerator.js</code></li>
+                <li><code>email/sendOtpEmail.js</code></li>
+              </ul>
+            </div>
+            <div class="meta-block">
+              <h4>Request body</h4>
+              <pre><code>{ "email": "user@example.com" }</code></pre>
+            </div>
+            <div class="meta-block">
+              <h4>Success response</h4>
+              <pre><code>{
+  "status": 200,
+  "message": "otp sent succcessfully",
+  "data": {}
+}</code></pre>
+            </div>
+          </div>
+          <div class="error-list">
+            <div class="error-item"><strong>404</strong> <code>Please provide the email</code>. This is a legacy mismatch: missing email returns 404 instead of 400.</div>
+            <div class="error-item"><strong>400</strong> Email format failed validation. The frontend can use the returned validator reason text.</div>
+            <div class="error-item"><strong>404</strong> <code>Email not found please do signup</code> means the email does not exist in the system.</div>
+          </div>
+        </article>
+      </div>
+
+      <h2 class="section-title route-section-title">Catalog And Device Routes</h2>
+      <div class="grid route-section-grid">
+        <article id="route-device-check" class="card route-card" data-search="post /api/device/check-compatibility userAgent country device compatibility">
+          <div class="route-header">
+            <span class="method">POST</span>
+            <span class="path">/api/device/check-compatibility</span>
+          </div>
+          <p class="summary">Checks if the incoming device appears compatible for eSIM support. Defaults <code>country</code> to <code>US</code>.</p>
+          <div class="meta">
+            <div class="meta-block">
+              <h4>Key files</h4>
+              <ul>
+                <li><code>controllers/controllers.deviceCompatablity.js</code></li>
+                <li><code>Orchestors/Orchestrator.deviceCompatibility.js</code></li>
+              </ul>
+            </div>
+            <div class="meta-block">
+              <h4>Request body</h4>
+              <pre><code>{
+  "userAgent": "Mozilla/5.0 ...",
+  "country": "US"
+}</code></pre>
+            </div>
+          </div>
+          <div class="error-list">
+            <div class="error-item"><strong>400</strong> <code>User agent is required</code>.</div>
+          </div>
+        </article>
+
+        <article id="route-destination-list" class="card route-card" data-search="get /api/get/all-destination destination list admin jwt">
+          <div class="route-header">
+            <span class="method">GET</span>
+            <span class="path">/api/get/all-destination</span>
+          </div>
+          <p class="summary">Fetches all supported destinations from upstream provider data using an admin JWT.</p>
+          <div class="meta">
+            <div class="meta-block">
+              <h4>Key files</h4>
+              <ul><li><code>controllers/fetchDestination.js</code></li><li><code>models/APIs_EndPoint/fetchDestinationService.js</code></li><li><code>config/Adminauth.js</code></li></ul>
+            </div>
+            <div class="meta-block">
+              <h4>Success envelope</h4>
+              <p><code>{ status: 200, message: "destination fetched successfully", data: [...] }</code></p>
+            </div>
+          </div>
+        </article>
+
+        <article id="route-sim-by-destination" class="card route-card" data-search="get /api/get/sims/:destinationid plans destination countryCode">
+          <div class="route-header">
+            <span class="method">GET</span>
+            <span class="path">/api/get/sims/:destinationid</span>
+          </div>
+          <p class="summary">Returns priced plans for a destination. Query parameter <code>countryCode</code> changes pricing/display context and defaults to <code>US</code>.</p>
+          <div class="meta">
+            <div class="meta-block">
+              <h4>Request</h4>
+              <p>Path: <code>:destinationid</code></p>
+              <p>Query: <code>?countryCode=IN</code></p>
+            </div>
+            <div class="meta-block">
+              <h4>Success response shape</h4>
+              <pre><code>{
+  "status": 200,
+  "message": "Sim details fetched successfully",
+  "data": {
+    "destination": "US",
+    "countryCode": "IN",
+    "plans": []
+  }
+}</code></pre>
+            </div>
+          </div>
+          <div class="error-list">
+            <div class="error-item"><strong>400</strong> Missing or blank destination id.</div>
+            <div class="error-item"><strong>400</strong> <code>countryCode</code> was supplied but blank/invalid.</div>
+          </div>
+        </article>
+
+        <article id="route-exchange-rates" class="card route-card" data-search="post /api/get/exchangeRates exchange country og_price currency display">
+          <div class="route-header">
+            <span class="method">POST</span>
+            <span class="path">/api/get/exchangeRates</span>
+          </div>
+          <p class="summary">Converts a price to the display currency for a given country using cached exchange rates.</p>
+          <div class="meta">
+            <div class="meta-block">
+              <h4>Request body</h4>
+              <pre><code>{
+  "country": "IN",
+  "og_price": 25.5
+}</code></pre>
+            </div>
+            <div class="meta-block">
+              <h4>Success notes</h4>
+              <p>If no target currency/rate exists, the route still returns <code>200</code> and falls back to the original price.</p>
+            </div>
+          </div>
+          <div class="error-list">
+            <div class="error-item"><strong>400</strong> Missing <code>country</code> or <code>og_price</code>.</div>
+            <div class="error-item warn"><strong>200 fallback</strong> <code>Unable to fetch falling back to CAD</code> is not an error response, but it means conversion did not happen.</div>
+          </div>
+        </article>
+      </div>
+
+      <h2 class="section-title route-section-title">User Purchase Routes</h2>
+      <div class="grid route-section-grid">
+        <article id="route-promocode-validate" class="card route-card" data-search="post /api/validate/promocode promo code order_amount user auth">
+          <div class="route-header">
+            <span class="method">POST</span>
+            <span class="path">/api/validate/promocode</span>
+          </div>
+          <p class="summary">Validates a promo code for the authenticated user. Also records session activity through middleware.</p>
+          <div class="meta">
+            <div class="meta-block">
+              <h4>Auth / middleware</h4>
+              <ul><li>User cookie required</li><li><code>trackUserSessionActivity</code> runs after response</li></ul>
+            </div>
+            <div class="meta-block">
+              <h4>Request body</h4>
+              <pre><code>{
+  "code": "SAVE10",
+  "order_amount": 25.5,
+  "country_code": "US",
+  "sim_type": 1
+}</code></pre>
+            </div>
+          </div>
+          <div class="error-list">
+            <div class="error-item"><strong>401 / 403</strong> User auth failed before controller ran.</div>
+            <div class="error-item"><strong>400</strong> Promo code missing or order amount is missing/zero/invalid.</div>
+          </div>
+        </article>
+
+        <article id="route-checkout-init" class="card route-card" data-search="post /api/init checkout initiate plan_id countryCode destinationId billingCountry paymentProvider">
+          <div class="route-header">
+            <span class="method">POST</span>
+            <span class="path">/api/init</span>
+          </div>
+          <p class="summary">Creates or reuses a checkout attempt, builds order/payment records, runs compliance and tax logic, and returns checkout payment data.</p>
+          <div class="meta">
+            <div class="meta-block">
+              <h4>Route map / file flow</h4>
+              <ul>
+                <li><code>controllers/checkout_controllers/checkoutInitiate.js</code></li>
+                <li><code>controllers/checkout_controllers/buildCheckoutInitiatePayload.js</code></li>
+                <li><code>Orchestors/checkoutOrchestrator.js</code></li>
+                <li><code>services/payments/paymentGatewayRouter.js</code></li>
+                <li><code>services/taxCompliance/*</code></li>
+              </ul>
+            </div>
+            <div class="meta-block">
+              <h4>Required request body</h4>
+              <pre><code>{
+  "plan_id": 123,
+  "destinationId": "US",
+  "countryCode": "CA"
+}</code></pre>
+            </div>
+            <div class="meta-block">
+              <h4>Optional body fields</h4>
+              <p><code>promocode</code>, <code>billingCountry</code>, <code>ipCountry</code>, <code>currency</code>, <code>paymentProvider</code>, <code>acceptTerms</code>, <code>productname</code>, <code>checkout_attempt_id</code></p>
+            </div>
+          </div>
+          <div class="subsection">
+            <h4>Success response</h4>
+            <p>Envelope is <code>{ status: 200, message: "data fetched successfully", data: ... }</code>. Data may include a new checkout session or a reused open one.</p>
+          </div>
+          <div class="error-list">
+            <div class="error-item"><strong>400</strong> Terms not accepted, plan not selected, or invalid country code format.</div>
+            <div class="error-item"><strong>404</strong> Selected plan is unavailable.</div>
+            <div class="error-item"><strong>403</strong> Checkout blocked by tax/compliance rules for the resolved country context.</div>
+            <div class="error-item"><strong>503</strong> Provider/admin balance unavailable, so checkout cannot proceed right now.</div>
+          </div>
+        </article>
+
+        <article id="route-customer-data" class="card route-card" data-search="post /api/post/customer/data provisioning order_id sim_type mobile_no msisdn">
+          <div class="route-header">
+            <span class="method">POST</span>
+            <span class="path">/api/post/customer/data</span>
+          </div>
+          <p class="summary">Stores customer provisioning data for a paid order. If <code>sim_type === 3</code>, this route internally forwards to the type-3 queue flow instead of saving the standard provisioning row.</p>
+          <div class="meta">
+            <div class="meta-block">
+              <h4>Request body</h4>
+              <pre><code>{
+  "order_id": 77,
+  "sim_type": 1,
+  "mobile_no": "123",
+  "msisdn": "234",
+  "product_code": "ABC",
+  "product_type": "DATA"
+}</code></pre>
+            </div>
+            <div class="meta-block">
+              <h4>Key files</h4>
+              <ul><li><code>controllers/PurchaseInitiate.saveCustomerData.js</code></li><li><code>models/model.saveCustomerpayload.js</code></li></ul>
+            </div>
+          </div>
+          <div class="error-list">
+            <div class="error-item"><strong>400</strong> <code>order_id and sim_type are required</code>.</div>
+            <div class="error-item warn"><strong>202</strong> If sim type is 3, response can become a queued or temporary-store response from the type-3 route instead of the normal 201 save response.</div>
+          </div>
+        </article>
+
+        <article id="route-customer-data-type3" class="card route-card" data-search="post /api/post/customer/data/type3/queue type3 queue order provisioning 409 404 403">
+          <div class="route-header">
+            <span class="method">POST</span>
+            <span class="path">/api/post/customer/data/type3/queue</span>
+          </div>
+          <p class="summary">Accepts the extra customer identity payload required for type-3 eSIM orders. Depending on order state, it either queues purchase immediately or stores payload temporarily until payment succeeds.</p>
+          <div class="meta">
+            <div class="meta-block">
+              <h4>Required request body</h4>
+              <pre><code>{
+  "order_id": 77,
+  "sim_type": 3,
+  "destinationId": "ES",
+  "customer_name": "Ada",
+  "customer_surname1": "Lovelace",
+  "customer_document_type_id": "PASSPORT",
+  "customer_document_number": "P12345",
+  "customer_birthdate": "1990-01-01",
+  "customer_sex": "F",
+  "customer_nationality_id": "GB"
+}</code></pre>
+            </div>
+            <div class="meta-block">
+              <h4>Key files</h4>
+              <ul>
+                <li><code>controllers/PurchaseInitiate.queueType3CustomerData.js</code></li>
+                <li><code>models/model.type3QueueOrder.js</code></li>
+                <li><code>services/type3TransientPayload.js</code></li>
+                <li><code>utils/Queues/purchaseQueueModel.js</code></li>
+              </ul>
+            </div>
+          </div>
+          <div class="subsection">
+            <h4>Success responses</h4>
+            <pre><code>{
+  "success": true,
+  "message": "Type 3 customer data queued for provisioning"
+}</code></pre>
+            <pre><code>{
+  "success": true,
+  "message": "Type 3 customer data stored temporarily until payment succeeds"
+}</code></pre>
+          </div>
+          <div class="error-list">
+            <div class="error-item"><strong>400</strong> Missing <code>order_id</code>, wrong <code>sim_type</code>, or one of the required customer fields is missing.</div>
+            <div class="error-item"><strong>403</strong> Logged-in user does not own the order.</div>
+            <div class="error-item"><strong>404</strong> Order not found.</div>
+            <div class="error-item"><strong>409</strong> Order already queued/provisioned, failed, or current order status does not allow type-3 payload intake.</div>
+          </div>
+        </article>
+
+        <article id="route-user-history" class="card route-card" data-search="get /api/get/user/history user history user_esim_view">
+          <div class="route-header">
+            <span class="method">GET</span>
+            <span class="path">/api/get/user/history</span>
+          </div>
+          <p class="summary">Returns the authenticated user's eSIM history view joined with email.</p>
+          <div class="meta">
+            <div class="meta-block">
+              <h4>Key files</h4>
+              <ul><li><code>controllers/controllers.Userhistory.js</code></li><li><code>config/db.js</code></li></ul>
+            </div>
+          </div>
+        </article>
+
+        <article id="route-user-purchase-history" class="card route-card" data-search="get /api/get/user/esim/purchase/history purchase history plan details">
+          <div class="route-header">
+            <span class="method">GET</span>
+            <span class="path">/api/get/user/esim/purchase/history</span>
+          </div>
+          <p class="summary">Returns purchase history plus plan metadata enrichment such as allowances, validity, operator, and supported countries.</p>
+          <div class="meta">
+            <div class="meta-block">
+              <h4>Key files</h4>
+              <ul><li><code>models/user_models/models.getUserPurchaseHistory.js</code></li><li><code>models/Checkout_models/fetchSimPriceById.js</code></li></ul>
+            </div>
+            <div class="meta-block">
+              <h4>Auth note</h4>
+              <p>If middleware somehow did not attach a user, controller itself returns <code>401 Authentication required</code>.</p>
+            </div>
+          </div>
+        </article>
+      </div>
+
+      <h2 class="section-title route-section-title">Admin Routes</h2>
+      <div class="grid route-section-grid">
+        <article id="route-admin-sim-multiplier-update" class="card route-card" data-search="post /api/admin/update/sim-multiplier multiplier country_code sim_type">
+          <div class="route-header"><span class="method">POST</span><span class="path">/api/admin/update/sim-multiplier</span></div>
+          <p class="summary">Creates or updates pricing multiplier rules for a sim type and optional country.</p>
+          <div class="meta">
+            <div class="meta-block">
+              <h4>Request body</h4>
+              <pre><code>{
+  "sim_type": 2,
+  "country_code": "US",
+  "multiplier": 3.5,
+  "is_active": false
+}</code></pre>
+            </div>
+            <div class="meta-block">
+              <h4>Behavior notes</h4>
+              <p>If <code>country_code</code> is omitted, backend stores <code>GLOBAL</code>. Boolean <code>is_active</code> is converted to <code>1</code> or <code>0</code>.</p>
+            </div>
+          </div>
+          <div class="error-list">
+            <div class="error-item"><strong>400</strong> Missing <code>sim_type</code>, missing <code>multiplier</code>, multiplier not numeric, multiplier ≤ 0, or multiplier &gt; 600.</div>
+          </div>
+        </article>
+
+        <article id="route-admin-sim-multiplier-delete" class="card route-card" data-search="post /api/admin/delete/sim-multiplier delete multiplier id">
+          <div class="route-header"><span class="method">POST</span><span class="path">/api/admin/delete/sim-multiplier</span></div>
+          <p class="summary">Deletes a multiplier row by numeric id.</p>
+          <div class="meta"><div class="meta-block"><h4>Request body</h4><pre><code>{ "id": 7 }</code></pre></div></div>
+          <div class="error-list">
+            <div class="error-item"><strong>400</strong> Missing id, invalid id, or multiplier row not found. This route returns 400 for not-found instead of 404.</div>
+          </div>
+        </article>
+
+        <article id="route-admin-sim-multiplier-list" class="card route-card" data-search="get /api/admin/get/sim-multiplier list multipliers">
+          <div class="route-header"><span class="method">GET</span><span class="path">/api/admin/get/sim-multiplier</span></div>
+          <p class="summary">Returns all rows from <code>sim_price_multipliers</code>.</p>
+        </article>
+
+        <article id="route-admin-userdata" class="card route-card" data-search="post /api/admin/get/userdata email orders payments esim history">
+          <div class="route-header"><span class="method">POST</span><span class="path">/api/admin/get/userdata</span></div>
+          <p class="summary">Fetches a user's order, payment, and eSIM history by email for admin support use.</p>
+          <div class="meta">
+            <div class="meta-block"><h4>Request body</h4><pre><code>{ "email": "user@example.com" }</code></pre></div>
+          </div>
+          <div class="error-list">
+            <div class="error-item"><strong>400</strong> Email missing.</div>
+            <div class="error-item"><strong>404</strong> User not found.</div>
+          </div>
+        </article>
+
+        <article id="route-admin-payload-email" class="card route-card" data-search="post /api/admin/get/frontend-payload frontend payload emailid email">
+          <div class="route-header"><span class="method">POST</span><span class="path">/api/admin/get/frontend-payload</span></div>
+          <p class="summary">Returns frontend purchase payload rows for a specific email.</p>
+          <div class="meta">
+            <div class="meta-block"><h4>Request body</h4><pre><code>{ "emailid": "user@example.com" }</code></pre></div>
+            <div class="meta-block"><h4>Alias</h4><p>Controller also accepts <code>email</code> in place of <code>emailid</code>.</p></div>
+          </div>
+          <div class="error-list">
+            <div class="error-item"><strong>400</strong> Missing <code>emailid</code>/<code>email</code>.</div>
+            <div class="error-item"><strong>404</strong> No purchase payload found for this email.</div>
+          </div>
+        </article>
+
+        <article id="route-admin-payload-all" class="card route-card" data-search="get /api/admin/get/frontend-payload/all from_date to_date payload all">
+          <div class="route-header"><span class="method">GET</span><span class="path">/api/admin/get/frontend-payload/all</span></div>
+          <p class="summary">Returns frontend purchase payloads for all customers, optionally filtered by date range. Extra route-level limiter: 2 requests per 15 minutes.</p>
+          <div class="meta">
+            <div class="meta-block"><h4>Query params</h4><p><code>from_date=YYYY-MM-DD</code>, <code>to_date=YYYY-MM-DD</code></p></div>
+          </div>
+          <div class="error-list">
+            <div class="error-item"><strong>400</strong> Invalid date format or <code>from_date &gt; to_date</code>.</div>
+            <div class="error-item warn"><strong>429</strong> Very strict additional limiter for this route.</div>
+          </div>
+        </article>
+
+        <article id="route-admin-balance" class="card route-card" data-search="get /api/admin/get/balance admin balance">
+          <div class="route-header"><span class="method">GET</span><span class="path">/api/admin/get/balance</span></div>
+          <p class="summary">Returns provider/admin balance snapshot, allowing stale data if needed.</p>
+        </article>
+
+        <article id="route-admin-esim-history" class="card route-card" data-search="get /api/admin/get/user/esimHistorybyId/:esim_history_id esim history id">
+          <div class="route-header"><span class="method">GET</span><span class="path">/api/admin/get/user/esimHistorybyId/:esim_history_id</span></div>
+          <p class="summary">Returns a single eSIM purchase history record with joined order, payment, provisioning, and user data.</p>
+          <div class="error-list">
+            <div class="error-item"><strong>400</strong> Missing <code>esim_history_id</code>.</div>
+            <div class="error-item"><strong>404</strong> eSIM history not found.</div>
+          </div>
+        </article>
+
+        <article id="route-admin-promocode-create" class="card route-card" data-search="post /api/admin/promocode create promo code duplicate 409">
+          <div class="route-header"><span class="method">POST</span><span class="path">/api/admin/promocode</span></div>
+          <p class="summary">Creates a promo code with optional constraints like max discount, date range, min order amount, country, and sim type.</p>
+          <div class="meta">
+            <div class="meta-block">
+              <h4>Required request fields</h4>
+              <p><code>code</code>, <code>discount_type</code> (<code>percentage</code> or <code>flat</code>), <code>discount_value</code></p>
+            </div>
+            <div class="meta-block">
+              <h4>Important validation rules</h4>
+              <p>Percentage discount cannot exceed 100. <code>max_discount</code> is only valid for percentage promos. <code>is_active</code> and <code>is_first_order_only</code> must be booleans.</p>
+            </div>
+          </div>
+          <div class="error-list">
+            <div class="error-item"><strong>400</strong> Validation failed for any promo field.</div>
+            <div class="error-item"><strong>409</strong> Promo code already exists after uppercasing and trimming.</div>
+          </div>
+        </article>
+
+        <article id="route-admin-promocode-list" class="card route-card" data-search="get /api/admin/promocode list promo codes">
+          <div class="route-header"><span class="method">GET</span><span class="path">/api/admin/promocode</span></div>
+          <p class="summary">Lists active promo codes with calculated status like <code>live</code>, <code>upcoming</code>, or <code>expired</code>.</p>
+        </article>
+
+        <article id="route-admin-promocode-delete" class="card route-card" data-search="delete /api/admin/promocode/:id soft delete promo code">
+          <div class="route-header"><span class="method">DELETE</span><span class="path">/api/admin/promocode/:id</span></div>
+          <p class="summary">Soft deletes a promo code by setting <code>is_active = FALSE</code>.</p>
+          <div class="meta"><div class="meta-block"><h4>Important note</h4><p>Current controller does not validate id existence before returning success.</p></div></div>
+        </article>
+
+        <article id="route-admin-tax-status" class="card route-card" data-search="get /api/admin/tax-status tax status">
+          <div class="route-header"><span class="method">GET</span><span class="path">/api/admin/tax-status</span></div>
+          <p class="summary">Returns current tax compliance snapshot.</p>
+        </article>
+
+        <article id="route-admin-tax-create" class="card route-card" data-search="post /api/admin/create-tax-country create tax country rule">
+          <div class="route-header"><span class="method">POST</span><span class="path">/api/admin/create-tax-country</span></div>
+          <p class="summary">Creates a new country tax configuration using tax status service validation.</p>
+        </article>
+
+        <article id="route-admin-tax-toggle" class="card route-card" data-search="post /api/admin/toggle-country toggle tax active boolean">
+          <div class="route-header"><span class="method">POST</span><span class="path">/api/admin/toggle-country</span></div>
+          <p class="summary">Enables or disables a country tax rule.</p>
+          <div class="error-list">
+            <div class="error-item"><strong>400</strong> <code>isActive</code> must be a boolean.</div>
+          </div>
+        </article>
+
+        <article id="route-admin-tax-update" class="card route-card" data-search="post /api/admin/update-tax-country update country tax rule">
+          <div class="route-header"><span class="method">POST</span><span class="path">/api/admin/update-tax-country</span></div>
+          <p class="summary">Updates an existing country tax configuration. Payload commonly includes <code>countryCode</code>, <code>countryName</code>, <code>thresholdAmount</code>, <code>currency</code>, <code>taxRate</code>, <code>isEu</code>, <code>requiresTaxFromFirstSale</code>, and <code>isActive</code>.</p>
+        </article>
+
+        <article id="route-admin-device-list" class="card route-card" data-search="get /api/admin/device-phones list phone variants">
+          <div class="route-header"><span class="method">GET</span><span class="path">/api/admin/device-phones</span></div>
+          <p class="summary">Returns all admin-managed phone variant rows used by device compatibility logic.</p>
+        </article>
+
+        <article id="route-admin-device-single" class="card route-card" data-search="get /api/admin/device-phones/:id phone variant id">
+          <div class="route-header"><span class="method">GET</span><span class="path">/api/admin/device-phones/:id</span></div>
+          <p class="summary">Returns a single phone variant record.</p>
+          <div class="error-list">
+            <div class="error-item"><strong>400</strong> Invalid or non-positive id.</div>
+            <div class="error-item"><strong>404</strong> Phone variant not found.</div>
+          </div>
+        </article>
+
+        <article id="route-admin-device-create" class="card route-card" data-search="post /api/admin/device-phones create phone variant brand family model">
+          <div class="route-header"><span class="method">POST</span><span class="path">/api/admin/device-phones</span></div>
+          <p class="summary">Creates a phone variant rule.</p>
+          <div class="meta">
+            <div class="meta-block">
+              <h4>Required request fields</h4>
+              <p><code>brand_name</code>, <code>family_name</code>, <code>model_code</code>, <code>os</code></p>
+            </div>
+            <div class="meta-block">
+              <h4>Allowed values</h4>
+              <p><code>os</code>: <code>Android</code> or <code>iOS</code>; <code>match_type</code>: <code>exact</code> or <code>prefix</code></p>
+            </div>
+          </div>
+          <div class="error-list">
+            <div class="error-item"><strong>400</strong> Missing required fields, invalid OS, invalid match type, or invalid minimum OS version.</div>
+          </div>
+        </article>
+
+        <article id="route-admin-device-update" class="card route-card" data-search="put /api/admin/device-phones/:id update phone variant">
+          <div class="route-header"><span class="method">PUT</span><span class="path">/api/admin/device-phones/:id</span></div>
+          <p class="summary">Partially updates a phone variant rule.</p>
+          <div class="error-list">
+            <div class="error-item"><strong>400</strong> Invalid id or invalid field values.</div>
+          </div>
+        </article>
+
+        <article id="route-admin-device-delete" class="card route-card" data-search="delete /api/admin/device-phones/:id delete phone variant">
+          <div class="route-header"><span class="method">DELETE</span><span class="path">/api/admin/device-phones/:id</span></div>
+          <p class="summary">Deletes a phone variant rule.</p>
+          <div class="error-list">
+            <div class="error-item"><strong>400</strong> Invalid id.</div>
+            <div class="error-item"><strong>404</strong> Phone variant not found.</div>
+          </div>
+        </article>
+
+        <article id="route-admin-security-sessions" class="card route-card" data-search="get /api/admin/security/user-sessions recent user sessions limit">
+          <div class="route-header"><span class="method">GET</span><span class="path">/api/admin/security/user-sessions</span></div>
+          <p class="summary">Returns recent user session audit rows. Default limit is 100.</p>
+          <div class="meta"><div class="meta-block"><h4>Query param</h4><p><code>?limit=50</code></p></div></div>
+          <div class="error-list">
+            <div class="error-item"><strong>400</strong> Limit is not a positive integer.</div>
+          </div>
+        </article>
+
+        <article id="route-admin-manual-provision" class="card route-card" data-search="post /api/admin/orders/manual-provision manual provisioning activation_code iccid order_id">
+          <div class="route-header"><span class="method">POST</span><span class="path">/api/admin/orders/manual-provision</span></div>
+          <p class="summary">Manually completes provisioning for an order from admin side and stores provider/provisioning metadata.</p>
+          <div class="meta">
+            <div class="meta-block">
+              <h4>Required request field</h4>
+              <p><code>order_id</code></p>
+            </div>
+            <div class="meta-block">
+              <h4>Common optional fields</h4>
+              <p><code>lpa</code> or <code>activation_code</code>, <code>iccid</code>, <code>msisdn</code>, provider reference/status fields, <code>notes</code></p>
+            </div>
+            <div class="meta-block">
+              <h4>Key files</h4>
+              <ul><li><code>controllers/Admin_controllers/admin.manualProvisionOrder.js</code></li><li><code>services/adminManualProvisioning.js</code></li></ul>
+            </div>
+          </div>
+          <div class="error-list">
+            <div class="error-item"><strong>400</strong> <code>Valid order_id is required.</code></div>
+          </div>
+        </article>
+
+        <article id="route-admin-analytics" class="card route-card" data-search="get /api/admin/analytics/overview analytics overview filter">
+          <div class="route-header"><span class="method">GET</span><span class="path">/api/admin/analytics/overview</span></div>
+          <p class="summary">Returns admin analytics overview. Supported filters: <code>all</code>, <code>daily</code>, <code>weekly</code>, <code>monthly</code>, <code>yearly</code>.</p>
+          <div class="meta"><div class="meta-block"><h4>Query param</h4><p><code>?filter=monthly</code></p></div></div>
+          <div class="error-list">
+            <div class="error-item"><strong>400</strong> Invalid filter value.</div>
+          </div>
+        </article>
+      </div>
+
+      <h2 class="section-title route-section-title">B2B Routes</h2>
+      <div class="grid route-section-grid">
+        <article id="route-b2b-create" class="card route-card" data-search="post /api/b2b/leads create b2b lead full_name email company">
+          <div class="route-header"><span class="method">POST</span><span class="path">/api/b2b/leads</span></div>
+          <p class="summary">Public lead capture endpoint for B2B prospects.</p>
+          <div class="meta">
+            <div class="meta-block">
+              <h4>Rate limit</h4>
+              <p>10 requests per hour</p>
+            </div>
+            <div class="meta-block">
+              <h4>Required request body</h4>
+              <pre><code>{
+  "full_name": "Lead Owner",
+  "email": "lead@example.com"
+}</code></pre>
+            </div>
+            <div class="meta-block">
+              <h4>Optional fields</h4>
+              <p><code>company</code>, <code>industry</code>, <code>units_range</code>, <code>regions</code>, <code>requirements</code>, <code>is_active</code></p>
+            </div>
+          </div>
+          <div class="error-list">
+            <div class="error-item"><strong>400</strong> Missing/blank <code>full_name</code> or <code>email</code>, field too long, invalid <code>regions</code>, or invalid <code>is_active</code>.</div>
+            <div class="error-item warn"><strong>429</strong> B2B lead rate limit exceeded.</div>
+          </div>
+        </article>
+
+        <article id="route-b2b-list" class="card route-card" data-search="get /api/b2b/leads admin list b2b leads status page limit">
+          <div class="route-header"><span class="method">GET</span><span class="path">/api/b2b/leads</span></div>
+          <p class="summary">Admin-only list endpoint for B2B leads with status/date/pagination filters.</p>
+          <div class="meta">
+            <div class="meta-block">
+              <h4>Query params</h4>
+              <p><code>status</code> = <code>active</code> | <code>inactive</code> | <code>all</code>, <code>from_date</code>, <code>to_date</code>, <code>time_segment</code>, <code>page</code>, <code>limit</code></p>
+            </div>
+          </div>
+          <div class="error-list">
+            <div class="error-item"><strong>401 / 403</strong> Admin auth failed.</div>
+            <div class="error-item"><strong>400</strong> Invalid status, invalid page, or invalid limit.</div>
+          </div>
+        </article>
+
+        <article id="route-b2b-update" class="card route-card" data-search="patch /api/b2b/leads/:id update b2b lead id unsupported field">
+          <div class="route-header"><span class="method">PATCH</span><span class="path">/api/b2b/leads/:id</span></div>
+          <p class="summary">Admin-only partial update for a lead.</p>
+          <div class="meta">
+            <div class="meta-block">
+              <h4>Allowed fields</h4>
+              <p><code>full_name</code>, <code>email</code>, <code>company</code>, <code>industry</code>, <code>units_range</code>, <code>regions</code>, <code>requirements</code>, <code>is_active</code></p>
+            </div>
+          </div>
+          <div class="error-list">
+            <div class="error-item"><strong>400</strong> Invalid lead id, empty patch body, unsupported field, or invalid field value.</div>
+          </div>
+        </article>
+      </div>
+
+      <h2 class="section-title">Implementation Notes</h2>
+      <div class="grid">
+        <article class="card">
+          <h3>Project structure at a glance</h3>
+          <table>
+            <tr><th>Folder</th><th>Role</th></tr>
+            <tr><td><code>src/</code></td><td>Express app entry, worker bootstrap</td></tr>
+            <tr><td><code>routes/</code></td><td>Route registration</td></tr>
+            <tr><td><code>controllers/</code></td><td>HTTP request handling</td></tr>
+            <tr><td><code>Orchestors/</code></td><td>Cross-service orchestration flows</td></tr>
+            <tr><td><code>models/</code></td><td>DB access and provider-facing data services</td></tr>
+            <tr><td><code>services/</code></td><td>Domain logic, auth helpers, tax, payment, provisioning</td></tr>
+            <tr><td><code>middlewares/</code></td><td>Auth, rate limiting, error handling, session audit</td></tr>
+            <tr><td><code>stripe/</code></td><td>Stripe checkout/webhook internals</td></tr>
+            <tr><td><code>tests/</code></td><td>Behavior verification and edge coverage</td></tr>
+          </table>
+        </article>
+
+        <article class="card">
+          <h3>Known consistency gaps the frontend should account for</h3>
+          <ul>
+            <li>Some routes return numeric <code>status</code>, some return string <code>status</code>, and some use <code>success</code>.</li>
+            <li><code>POST /api/auth/otp/resend</code> returns <code>404</code> for missing email, which is unusual.</li>
+            <li><code>POST /api/auth/otp/verify</code> returns <code>401</code> for missing fields, not <code>400</code>.</li>
+            <li><code>POST /api/admin/delete/sim-multiplier</code> returns <code>400</code> when the row is not found, not <code>404</code>.</li>
+            <li><code>DELETE /api/admin/promocode/:id</code> currently returns success without explicitly checking affected rows.</li>
+          </ul>
+        </article>
+      </div>
+
+      <div id="noResults" class="no-results hidden">
+        No routes found matching your current search or filter.
+      </div>
+    </main>
+  </div>
+
+  <script>
+    const searchInput = document.getElementById("routeSearch");
+    const searchInputMain = document.getElementById("routeSearchMain");
+    const cards = Array.from(document.querySelectorAll(".route-card"));
+    const filterButtons = Array.from(document.querySelectorAll(".filter-btn"));
+    const noResults = document.getElementById("noResults");
+    const routeSectionGrids = Array.from(document.querySelectorAll(".route-section-grid"));
+    let currentFilter = "all";
+
+    const inferRouteMeta = (card) => {
+      const method = card.querySelector(".method")?.textContent.trim().toUpperCase() || "";
+      const path = card.querySelector(".path")?.textContent.trim() || "";
+      const text = card.textContent.toLowerCase();
+      const search = (card.dataset.search || "").toLowerCase();
+
+      const isAdmin = path.includes("/api/admin/") || (path === "/api/b2b/leads" && text.includes("admin-only")) || search.includes("admin");
+      const isAuthRequired = !isAdmin && (
+        path.includes("/api/validate/promocode") ||
+        path.includes("/api/init") ||
+        path.includes("/api/post/customer/data") ||
+        path.includes("/api/get/user/history") ||
+        path.includes("/api/get/user/esim/purchase/history")
+      );
+
+      card.dataset.method = method;
+      card.dataset.auth = isAdmin ? "admin" : isAuthRequired ? "auth" : "public";
+    };
+
+    cards.forEach(inferRouteMeta);
+
+    const syncSearchInputs = (value, source) => {
+      if (source !== searchInput) searchInput.value = value;
+      if (source !== searchInputMain) searchInputMain.value = value;
+    };
+
+    const updateStats = () => {
+      document.getElementById("totalRoutes").textContent = cards.length;
+      document.getElementById("authRoutes").textContent = cards.filter((card) => card.dataset.auth === "auth").length;
+      document.getElementById("adminRoutes").textContent = cards.filter((card) => card.dataset.auth === "admin").length;
+      document.getElementById("publicRoutes").textContent = cards.filter((card) => card.dataset.auth === "public").length;
+    };
+
+    const updateResultsBar = (count) => {
+      const labelMap = {
+        all: "Filter: All routes",
+        GET: "Filter: GET routes",
+        POST: "Filter: POST routes",
+        PUT: "Filter: PUT routes",
+        DELETE: "Filter: DELETE routes",
+        PATCH: "Filter: PATCH routes",
+        admin: "Filter: Admin only",
+        auth: "Filter: Auth required"
+      };
+
+      document.getElementById("visibleCount").textContent = count;
+      document.getElementById("activeFilterLabel").textContent = labelMap[currentFilter] || "Filter: Custom";
+    };
+
+    const applyFilters = () => {
+      const value = (searchInput.value || searchInputMain.value || "").trim().toLowerCase();
+      let visibleCount = 0;
+
+      cards.forEach((card) => {
+        const haystack = (card.dataset.search || "").toLowerCase() + " " + card.textContent.toLowerCase();
+        const matchesSearch = !value || haystack.includes(value);
+        const matchesFilter =
+          currentFilter === "all" ||
+          card.dataset.method === currentFilter ||
+          (currentFilter === "admin" && card.dataset.auth === "admin") ||
+          (currentFilter === "auth" && card.dataset.auth === "auth");
+
+        const show = matchesSearch && matchesFilter;
+        card.classList.toggle("hidden", !show);
+        if (show) visibleCount += 1;
+      });
+
+      routeSectionGrids.forEach((grid) => {
+        const title = grid.previousElementSibling;
+        const hasVisibleRoute = Array.from(grid.querySelectorAll(".route-card")).some((card) => !card.classList.contains("hidden"));
+        grid.classList.toggle("hidden", !hasVisibleRoute);
+        if (title?.classList.contains("route-section-title")) {
+          title.classList.toggle("hidden", !hasVisibleRoute);
+        }
+      });
+
+      noResults.classList.toggle("hidden", visibleCount !== 0);
+      updateResultsBar(visibleCount);
+    };
+
+    searchInput.addEventListener("input", (event) => {
+      syncSearchInputs(event.target.value, searchInput);
+      applyFilters();
+    });
+
+    searchInputMain.addEventListener("input", (event) => {
+      syncSearchInputs(event.target.value, searchInputMain);
+      applyFilters();
+    });
+
+    filterButtons.forEach((button) => {
+      button.addEventListener("click", () => {
+        filterButtons.forEach((item) => item.classList.remove("active"));
+        button.classList.add("active");
+        currentFilter = button.dataset.filter;
+        applyFilters();
+      });
+    });
+
+    updateStats();
+    applyFilters();
+  </script>
+</body>
+</html>
