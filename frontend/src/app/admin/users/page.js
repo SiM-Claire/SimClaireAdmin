@@ -1109,11 +1109,12 @@ const enteredPassword = window.prompt("Enter admin PIN to update the order. This
                   <h3 className="text-2xl font-extrabold text-gray-900 tracking-tight">
                     {isEditingOrder ? "Edit Manual Fulfillment" : "eSIM Record"}
                   </h3>
-                  <p><span className="font-bold">Status Description: </span>{selectedSim.raw_response?.statusdesc}</p>
+                  
                   {!isEditingOrder && (
                     <p className="text-sm text-gray-500 mt-1 font-medium flex items-center gap-2">
                       History ID: <span className="font-mono bg-gray-200 px-1.5 py-0.5 rounded text-gray-700">#{selectedSim.esim_history_id || "Loading..."}</span> | User ID: <span className="font-mono bg-gray-200 px-1.5 py-0.5 rounded text-gray-700">#{selectedSim.user_id}</span>
                     </p>
+                    
                   )}
                 </div>
                 <div className="flex items-center gap-3">
@@ -1150,7 +1151,7 @@ const enteredPassword = window.prompt("Enter admin PIN to update the order. This
                   )}
                 </div>
               </div>
-
+                  <p className="flex flex-row justify-center items-center gap-3 px-6 " ><span className="font-bold">Api Status Description: </span>{selectedSim.raw_response?.statusdesc}</p>
               {/* Modal Body */}
               <div className="p-6 overflow-y-auto">
                 {isDetailsLoading || selectedSim.loading ? (
