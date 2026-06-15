@@ -261,6 +261,20 @@ export default function AdminPartnerCustomerSearch() {
             doc.text("• Go to your device Settings > Cellular/Mobile Data > Add eSIM.", 25, 257);
             doc.text("• Scan the QR code above and follow the on-screen prompts.", 25, 264);
 
+             doc.setFont("helvetica", "bold");
+            doc.setFontSize(10);
+            doc.setTextColor(100, 116, 139); 
+            doc.text("Need help? Reach our support concierge:", 105, 278, { align: "center" });
+
+            doc.setFontSize(11);
+            doc.setTextColor(7, 119, 112); 
+            doc.text("care@simclaire.com   |   +1 (437) 605-6560", 105, 287, { align: "center" });
+
+            doc.setFont("helvetica", "normal");
+            doc.setFontSize(9);
+            doc.setTextColor(148, 163, 184); 
+            doc.text("© 2026 SiM Claire. All rights reserved.", 105, 293, { align: "center" });
+
             doc.save(`SiM_Claire_${order.country_code || "eSIM"}_${order.order_id || "Receipt"}.pdf`);
         } catch (err) {
             console.error("Failed to generate PDF", err);
