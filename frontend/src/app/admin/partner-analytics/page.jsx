@@ -2,35 +2,35 @@
 
 import { useState, useEffect } from "react";
 import axios from "axios";
-import { 
-    TrendingUp, Users, ShoppingCart, DollarSign, 
+import {
+    TrendingUp, Users, ShoppingCart, DollarSign,
     Filter, Calendar, Trophy, Building2, Activity,
-    CheckCircle2, AlertCircle,Search
+    CheckCircle2, AlertCircle, Search
 } from "lucide-react";
 
 export default function AdminPartnerAnalyticsPage() {
     const [analyticsData, setAnalyticsData] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
-    
+
     // Filter States
     const [filterType, setFilterType] = useState("monthly"); // 'all', 'monthly', 'custom'
     const [selectedMonth, setSelectedMonth] = useState(() => {
         const d = new Date();
         return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
     });
-// Add this state
-const [partnerSearchQuery, setPartnerSearchQuery] = useState("");
+    // Add this state
+    const [partnerSearchQuery, setPartnerSearchQuery] = useState("");
 
-// Add this filtering logic
-const filteredPartnerSales = analyticsData?.partner_sales?.filter(partner => {
-    if (!partnerSearchQuery) return true;
-    const query = partnerSearchQuery.toLowerCase();
-    return (
-        partner.partner_name?.toLowerCase().includes(query) ||
-        partner.email?.toLowerCase().includes(query)
-    );
-}) || [];
+    // Add this filtering logic
+    const filteredPartnerSales = analyticsData?.partner_sales?.filter(partner => {
+        if (!partnerSearchQuery) return true;
+        const query = partnerSearchQuery.toLowerCase();
+        return (
+            partner.partner_name?.toLowerCase().includes(query) ||
+            partner.email?.toLowerCase().includes(query)
+        );
+    }) || [];
     // --- Formatters ---
     const formatCurrency = (amount) => {
         return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'CAD' }).format(amount || 0);
@@ -39,7 +39,7 @@ const filteredPartnerSales = analyticsData?.partner_sales?.filter(partner => {
     const formatDate = (dateString) => {
         if (!dateString) return "N/A";
         const date = new Date(dateString);
-        if (isNaN(date.getTime())) return dateString; 
+        if (isNaN(date.getTime())) return dateString;
         return date.toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
     };
 
@@ -56,7 +56,7 @@ const filteredPartnerSales = analyticsData?.partner_sales?.filter(partner => {
             setError("");
             try {
                 const adminToken = localStorage.getItem("adminToken");
-                
+
                 // Build Query Parameters dynamically
                 let queryUrl = `${process.env.NEXT_PUBLIC_API_URL}/admin/analytics/partners?filter=${filterType}`;
                 if (filterType === "monthly") {
@@ -85,7 +85,7 @@ const filteredPartnerSales = analyticsData?.partner_sales?.filter(partner => {
 
     return (
         <div className="p-6 font-sans">
-            
+
             {/* Header & Filters */}
             <div className="flex flex-col md:flex-row md:items-end justify-between mb-8 gap-4">
                 <div>
@@ -98,8 +98,8 @@ const filteredPartnerSales = analyticsData?.partner_sales?.filter(partner => {
                 <div className="flex flex-wrap items-center gap-3 bg-white p-3 rounded-xl border border-slate-200 shadow-sm">
                     <div className="flex items-center gap-2 border-r border-slate-200 pr-3">
                         <Filter size={18} className="text-slate-400" />
-                        <select 
-                            value={filterType} 
+                        <select
+                            value={filterType}
                             onChange={(e) => setFilterType(e.target.value)}
                             className="bg-transparent text-sm font-bold text-slate-700 outline-none cursor-pointer"
                         >
@@ -110,8 +110,8 @@ const filteredPartnerSales = analyticsData?.partner_sales?.filter(partner => {
 
                     {filterType === "monthly" && (
                         <div className="flex items-center gap-2 pl-1">
-                            <input 
-                                type="month" 
+                            <input
+                                type="month"
                                 value={selectedMonth}
                                 onChange={(e) => setSelectedMonth(e.target.value)}
                                 className="bg-transparent text-sm font-bold text-brand outline-none cursor-pointer"
@@ -136,7 +136,7 @@ const filteredPartnerSales = analyticsData?.partner_sales?.filter(partner => {
                 <>
                     {/* TOP SUMMARY CARDS (Safely Chained) */}
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-                        
+
                         {/* Total Revenue */}
                         <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
                             <div className="flex items-center justify-between mb-4">
@@ -145,10 +145,38 @@ const filteredPartnerSales = analyticsData?.partner_sales?.filter(partner => {
                                 </div>
                                 <span className="text-xs font-bold text-green-600 bg-green-50 px-2 py-1 rounded-md">B2B Revenue</span>
                             </div>
-                            <p className="text-sm text-slate-500 font-semibold mb-1">Total Partner Sales</p>
+                            <p className="text-sm text-slate-500 font-semibold mb-1">Total Partner Spend</p>
                             <h3 className="text-3xl font-extrabold text-slate-900">
                                 {/* 🌟 Safe Chaining Used Here */}
                                 {formatCurrency(analyticsData?.summary?.total_partner_sales || 0)}
+                            </h3>
+                        </div>
+                        <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+                            <div className="flex items-center justify-between mb-4">
+                                <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center text-red-600">
+                                    <DollarSign size={20} />
+                                </div>
+                                <span className="text-xs font-bold text-red-600 bg-red-50 px-2 py-1 rounded-md">B2B Cost</span>
+                            </div>
+                            <p className="text-sm text-slate-500 font-semibold mb-1">Total Company Cost</p>
+                            <h3 className="text-3xl font-extrabold text-slate-900">
+                                {/* 🌟 Safe Chaining Used Here */}
+                                {formatCurrency(analyticsData?.summary?.total_partner_company_cost
+                                    || 0)}
+                            </h3>
+                        </div>
+                        <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+                            <div className="flex items-center justify-between mb-4">
+                                <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center text-green-600">
+                                    <DollarSign size={20} />
+                                </div>
+                                <span className="text-xs font-bold text-green-600 bg-green-50 px-2 py-1 rounded-md">B2B Profit</span>
+                            </div>
+                            <p className="text-sm text-slate-500 font-semibold mb-1">Total Company Profit</p>
+                            <h3 className="text-3xl font-extrabold text-slate-900">
+                                {/* 🌟 Safe Chaining Used Here */}
+                                {formatCurrency(analyticsData?.summary?.total_partner_profit
+                                    || 0)}
                             </h3>
                         </div>
 
@@ -180,6 +208,7 @@ const filteredPartnerSales = analyticsData?.partner_sales?.filter(partner => {
                             </h3>
                         </div>
 
+
                         {/* Top Partner Spotlight */}
                         <div className="bg-gradient-to-br from-orange-50 to-orange-100 p-6 rounded-2xl border border-orange-200 shadow-sm relative overflow-hidden">
                             <div className="flex items-center justify-between mb-3 relative z-10">
@@ -206,72 +235,72 @@ const filteredPartnerSales = analyticsData?.partner_sales?.filter(partner => {
                     </div>
 
                     <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
-                        
+
                         {/* LEFT: PARTNER LEADERBOARD */}
                         <div className="xl:col-span-2 bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden flex flex-col">
-    <div className="p-5 border-b border-slate-100 bg-slate-50/50 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <h3 className="font-bold text-slate-900 flex items-center gap-2">
-            <Building2 className="text-brand" size={18} /> Partner Sales Breakdown
-        </h3>
-        
-        {/* Search Bar UI */}
-        <div className="relative w-full sm:w-72">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-            <input 
-                type="text" 
-                placeholder="Search by name or email..." 
-                value={partnerSearchQuery}
-                onChange={(e) => setPartnerSearchQuery(e.target.value)}
-                className="w-full pl-9 pr-4 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium focus:outline-none focus:border-brand focus:ring-1 focus:ring-brand transition-all shadow-sm"
-            />
-        </div>
-    </div>
-    
-    <div className="overflow-x-auto p-4">
-        <table className="w-full text-left border-collapse whitespace-nowrap">
-            <thead className="text-xs uppercase text-slate-400 font-bold border-b border-slate-100">
-                <tr>
-                    <th className="pb-3 pl-2">Partner</th>
-                    <th className="pb-3">Status</th>
-                    <th className="pb-3 text-center">Customers</th>
-                    <th className="pb-3 text-center">Paid Orders</th>
-                    <th className="pb-3 text-right">Total Revenue</th>
-                    <th className="pb-3 text-right pr-2">Last Order</th>
-                </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-50">
-                {filteredPartnerSales.length === 0 ? (
-                    <tr>
-                        <td colSpan="6" className="py-8 text-center text-slate-400">
-                            {partnerSearchQuery ? "No partners match your search." : "No partner sales found for this period."}
-                        </td>
-                    </tr>
-                ) : (
-                    filteredPartnerSales.map((partner) => (
-                        <tr key={partner.partner_access_id} className="hover:bg-slate-50/50 transition-colors">
-                            <td className="py-3 pl-2">
-                                <p className="font-bold text-slate-800">{partner.partner_name}</p>
-                                <p className="text-xs text-slate-500">{partner.email}</p>
-                            </td>
-                            <td className="py-3">{getStatusBadge(partner.status)}</td>
-                            <td className="py-3 text-center font-semibold text-slate-600">{partner.total_customers}</td>
-                            <td className="py-3 text-center">
-                                <span className="font-bold text-slate-800">{partner.paid_orders}</span>
-                                <span className="text-xs text-slate-400 ml-1">/ {partner.total_orders}</span>
-                            </td>
-                            <td className="py-3 text-right font-extrabold text-green-600">
-                                {formatCurrency(partner.total_sales)}
-                            </td>
-                            <td className="py-3 text-right pr-2 text-xs text-slate-500 font-medium">
-                                {formatDate(partner.last_order_at)}
-                            </td>
-                        </tr>
-                    ))
-                )}
-            </tbody>
-        </table>
-    </div>
-</div>
+                            <div className="p-5 border-b border-slate-100 bg-slate-50/50 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                                <h3 className="font-bold text-slate-900 flex items-center gap-2">
+                                    <Building2 className="text-brand" size={18} /> Partner Sales Breakdown
+                                </h3>
+
+                                {/* Search Bar UI */}
+                                <div className="relative w-full sm:w-72">
+                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                                    <input
+                                        type="text"
+                                        placeholder="Search by name or email..."
+                                        value={partnerSearchQuery}
+                                        onChange={(e) => setPartnerSearchQuery(e.target.value)}
+                                        className="w-full pl-9 pr-4 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium focus:outline-none focus:border-brand focus:ring-1 focus:ring-brand transition-all shadow-sm"
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="overflow-x-auto p-4">
+                                <table className="w-full text-left border-collapse whitespace-nowrap">
+                                    <thead className="text-xs uppercase text-slate-400 font-bold border-b border-slate-100">
+                                        <tr>
+                                            <th className="pb-3 pl-2">Partner</th>
+                                            <th className="pb-3">Status</th>
+                                            <th className="pb-3 text-center">Customers</th>
+                                            <th className="pb-3 text-center">Paid Orders</th>
+                                            <th className="pb-3 text-right">Total Revenue</th>
+                                            <th className="pb-3 text-right pr-2">Last Order</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-slate-50">
+                                        {filteredPartnerSales.length === 0 ? (
+                                            <tr>
+                                                <td colSpan="6" className="py-8 text-center text-slate-400">
+                                                    {partnerSearchQuery ? "No partners match your search." : "No partner sales found for this period."}
+                                                </td>
+                                            </tr>
+                                        ) : (
+                                            filteredPartnerSales.map((partner) => (
+                                                <tr key={partner.partner_access_id} className="hover:bg-slate-50/50 transition-colors">
+                                                    <td className="py-3 pl-2">
+                                                        <p className="font-bold text-slate-800">{partner.partner_name}</p>
+                                                        <p className="text-xs text-slate-500">{partner.email}</p>
+                                                    </td>
+                                                    <td className="py-3">{getStatusBadge(partner.status)}</td>
+                                                    <td className="py-3 text-center font-semibold text-slate-600">{partner.total_customers}</td>
+                                                    <td className="py-3 text-center">
+                                                        <span className="font-bold text-slate-800">{partner.paid_orders}</span>
+                                                        <span className="text-xs text-slate-400 ml-1">/ {partner.total_orders}</span>
+                                                    </td>
+                                                    <td className="py-3 text-right font-extrabold text-green-600">
+                                                        {formatCurrency(partner.total_sales)}
+                                                    </td>
+                                                    <td className="py-3 text-right pr-2 text-xs text-slate-500 font-medium">
+                                                        {formatDate(partner.last_order_at)}
+                                                    </td>
+                                                </tr>
+                                            ))
+                                        )}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
 
                         {/* RIGHT: TIMELINE / BUCKETS */}
                         <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden flex flex-col">
