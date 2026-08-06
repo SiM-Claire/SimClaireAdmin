@@ -40,6 +40,9 @@ export default function PartnerPlanManager() {
   const [sortPrice, setSortPrice] = useState("default");
   const [sortValidity, setSortValidity] = useState("default");
 
+  // 🌟 NEW: Global Multiplier State
+  const [globalMultiplier, setGlobalMultiplier] = useState("1.5");
+
   // --- API Fetchers ---
   const fetchCountryPlans = async () => {
     if (!countryCode) return;
@@ -128,13 +131,6 @@ export default function PartnerPlanManager() {
     }
   };
 
-  // --- Computed Data ---
-  const filteredDestinations = allDestinations.filter(dest =>
-    dest.destinationName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    dest.isoCode.toLowerCase().includes(searchQuery.toLowerCase())
-  );
-  
-  const selectedDestination = allDestinations.find(d => d.destinationID === countryCode);
 
   // ==========================================
   // 🌟 PROCESSED PLANS (FILTERED & SORTED)
@@ -148,7 +144,7 @@ export default function PartnerPlanManager() {
       const matchesSearch = (p.plan_name || "").toLowerCase().includes(planSearchQuery.toLowerCase()) || 
                             (p.plan_id || "").toLowerCase().includes(planSearchQuery.toLowerCase());
       
-      // 2. Status (Based on real-time edited release state)
+      // 2. Status
       let matchesStatus = true;
       if (filterStatus === "released") matchesStatus = editState.is_released === true;
       if (filterStatus === "hidden") matchesStatus = editState.is_released === false;
@@ -184,7 +180,6 @@ export default function PartnerPlanManager() {
     .sort((a, b) => {
       if (sortPrice === "default" && sortValidity === "default") return 0;
 
-      // 🌟 Sort using the real-time live edited price!
       const editStateA = editedPlans[a.plan_id] || {};
       const editStateB = editedPlans[b.plan_id] || {};
       const multA = parseFloat(editStateA.partner_multiplier) || 0;
@@ -207,6 +202,43 @@ export default function PartnerPlanManager() {
       return 0;
     });
 
+  // 🌟 NEW: Handle Apply Global Multiplier to Filtered List
+  const handleApplyGlobalMultiplier = () => {
+    const parsed = parseFloat(globalMultiplier);
+    
+    if (isNaN(parsed) || parsed < 1) {
+      alert("Please enter a valid multiplier (1.0 or greater).");
+      return;
+    }
+
+    if (processedPlans.length === 0) return;
+
+    const confirmMessage = `Are you sure you want to release all ${processedPlans.length} currently visible plans with a multiplier of ${parsed}x?`;
+    if (!window.confirm(confirmMessage)) return;
+
+    setEditedPlans(prev => {
+      const nextState = { ...prev };
+      
+      // Only apply to the plans currently visible in the table
+      processedPlans.forEach(p => {
+        nextState[p.plan_id] = {
+          ...nextState[p.plan_id],
+          is_released: true,
+          partner_multiplier: parsed
+        };
+      });
+      
+      return nextState;
+    });
+  };
+
+  // --- Computed Data ---
+  const filteredDestinations = allDestinations.filter(dest =>
+    dest.destinationName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    dest.isoCode.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+  
+  const selectedDestination = allDestinations.find(d => d.destinationID === countryCode);
 
   return (
     <div className="p-6">
@@ -355,14 +387,41 @@ export default function PartnerPlanManager() {
 
 
           <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-            <div className="p-5 bg-slate-50 border-b border-slate-200 flex justify-between items-center">
+            <div className="p-5 bg-slate-50 border-b border-slate-200 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
               <span className="text-sm font-semibold text-slate-600">Showing {processedPlans.length} plans for {countryCode}</span>
-              <button 
-                onClick={handleBulkSave} disabled={isSaving}
-                className="bg-[#077770] text-white px-6 py-2.5 rounded-xl font-bold flex items-center gap-2 hover:bg-[#065f59] disabled:opacity-50 transition-all shadow-sm shadow-teal-500/20"
-              >
-                <Save size={18} /> {isSaving ? "Saving..." : "Save All Changes"}
-              </button>
+              
+              <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
+                {/* 🌟 NEW: Global Multiplier Input & Button */}
+                <div className="flex items-center bg-white border border-slate-200 rounded-xl overflow-hidden h-10 shadow-sm w-full md:w-auto">
+                  <span className="px-3 text-xs font-bold text-slate-500 bg-slate-100 border-r border-slate-200 h-full flex items-center">
+                    GLOBAL MULTIPLIER
+                  </span>
+                  <input 
+                    type="number" 
+                    step="0.1" 
+                    min="1"
+                    value={globalMultiplier}
+                    onChange={(e) => setGlobalMultiplier(e.target.value)}
+                    className="w-20 px-3 py-2 text-sm font-bold text-slate-800 outline-none"
+                    placeholder="1.0"
+                  />
+                  <button 
+                    onClick={handleApplyGlobalMultiplier}
+                    disabled={processedPlans.length === 0}
+                    className="bg-indigo-600 text-white px-4 h-full text-sm font-bold hover:bg-indigo-700 disabled:bg-slate-300 disabled:cursor-not-allowed transition-colors"
+                  >
+                    Apply to List
+                  </button>
+                </div>
+
+                {/* Existing Save Button */}
+                <button 
+                  onClick={handleBulkSave} disabled={isSaving}
+                  className="bg-[#077770] text-white px-6 py-2 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-[#065f59] disabled:opacity-50 transition-all shadow-sm shadow-teal-500/20 h-10 w-full md:w-auto"
+                >
+                  <Save size={18} /> {isSaving ? "Saving..." : "Save All Changes"}
+                </button>
+              </div>
             </div>
 
             <div className="overflow-x-auto">
