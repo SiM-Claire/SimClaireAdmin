@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { 
   ArrowLeft, Save, Globe, Search, ChevronDown, ChevronUp, 
-  Check, Info, Tag, MapPin, Filter, ArrowUpDown 
+  Check, Info, Tag, MapPin, Filter, ArrowUpDown, EyeOff // 🌟 Added EyeOff icon
 } from "lucide-react";
 import axios from "axios";
 
@@ -19,13 +19,11 @@ export default function PartnerPlanManager() {
   const [searchQuery, setSearchQuery] = useState("");
   const dropdownRef = useRef(null);
   
-  // 🌟 Default to the first destination in the list
   const [countryCode, setCountryCode] = useState(allDestinations[0]?.destinationID || ""); 
   const [data, setData] = useState(null);
   const [editedPlans, setEditedPlans] = useState({});
   const [isSaving, setIsSaving] = useState(false);
 
-  // 🌟 State to track the currently expanded row
   const [expandedRowId, setExpandedRowId] = useState(null);
 
   // ==========================================
@@ -40,6 +38,8 @@ export default function PartnerPlanManager() {
   const [sortPrice, setSortPrice] = useState("default");
   const [sortValidity, setSortValidity] = useState("default");
 
+  const [globalMultiplier, setGlobalMultiplier] = useState("1.5");
+
   // --- API Fetchers ---
   const fetchCountryPlans = async () => {
     if (!countryCode) return;
@@ -52,7 +52,6 @@ export default function PartnerPlanManager() {
       if (res.data.status === 200) {
         setData(res.data.data);
         
-        // Pre-fill our editing state with the fetched data
         const initialEdits = {};
         res.data.data.plans.forEach(p => {
           initialEdits[p.plan_id] = {
@@ -81,7 +80,7 @@ export default function PartnerPlanManager() {
 
   useEffect(() => {
     fetchCountryPlans();
-    setExpandedRowId(null); // Reset expansion when country changes
+    setExpandedRowId(null); 
   }, [countryCode]);
 
   // --- Handlers ---
@@ -128,13 +127,6 @@ export default function PartnerPlanManager() {
     }
   };
 
-  // --- Computed Data ---
-  const filteredDestinations = allDestinations.filter(dest =>
-    dest.destinationName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    dest.isoCode.toLowerCase().includes(searchQuery.toLowerCase())
-  );
-  
-  const selectedDestination = allDestinations.find(d => d.destinationID === countryCode);
 
   // ==========================================
   // 🌟 PROCESSED PLANS (FILTERED & SORTED)
@@ -144,28 +136,23 @@ export default function PartnerPlanManager() {
       const editState = editedPlans[p.plan_id] || {};
       const raw = p.raw_plan || {};
 
-      // 1. Search
       const matchesSearch = (p.plan_name || "").toLowerCase().includes(planSearchQuery.toLowerCase()) || 
                             (p.plan_id || "").toLowerCase().includes(planSearchQuery.toLowerCase());
       
-      // 2. Status (Based on real-time edited release state)
       let matchesStatus = true;
       if (filterStatus === "released") matchesStatus = editState.is_released === true;
       if (filterStatus === "hidden") matchesStatus = editState.is_released === false;
 
-      // 3. Data Type
       let matchesData = true;
       const dataType = (raw.productDataType || "").toLowerCase();
       if (filterData === "unlimited") matchesData = dataType === "unlimited";
       if (filterData === "fixed") matchesData = dataType !== "unlimited";
 
-      // 4. Features (Voice/SMS)
       let matchesFeatures = true;
       const hasVoice = raw.productVoice === 'YES' || parseInt(raw.productVoiceMinutes || 0) > 0;
       if (filterFeatures === "data_only") matchesFeatures = !hasVoice;
       if (filterFeatures === "with_voice") matchesFeatures = hasVoice;
 
-      // 5. Durations (Validity)
       let matchesValidity = true;
       const days = parseInt(p.validity_days || 0, 10);
       if (filterDurations === "short") matchesValidity = days >= 1 && days <= 7;
@@ -173,7 +160,6 @@ export default function PartnerPlanManager() {
       if (filterDurations === "long") matchesValidity = days >= 16 && days <= 30;
       if (filterDurations === "extended") matchesValidity = days > 30;
 
-      // 6. SIM Type
       let matchesSimType = true;
       const typeNum = parseInt(raw.productType || 0, 10);
       if (filterSimType === "1_2") matchesSimType = typeNum >= 1 && typeNum <= 2;
@@ -184,7 +170,6 @@ export default function PartnerPlanManager() {
     .sort((a, b) => {
       if (sortPrice === "default" && sortValidity === "default") return 0;
 
-      // 🌟 Sort using the real-time live edited price!
       const editStateA = editedPlans[a.plan_id] || {};
       const editStateB = editedPlans[b.plan_id] || {};
       const multA = parseFloat(editStateA.partner_multiplier) || 0;
@@ -207,6 +192,61 @@ export default function PartnerPlanManager() {
       return 0;
     });
 
+  const handleApplyGlobalMultiplier = () => {
+    const parsed = parseFloat(globalMultiplier);
+    
+    if (isNaN(parsed) || parsed < 1) {
+      alert("Please enter a valid multiplier (1.0 or greater).");
+      return;
+    }
+
+    if (processedPlans.length === 0) return;
+
+    const confirmMessage = `Are you sure you want to release all ${processedPlans.length} currently visible plans with a multiplier of ${parsed}x?`;
+    if (!window.confirm(confirmMessage)) return;
+
+    setEditedPlans(prev => {
+      const nextState = { ...prev };
+      
+      processedPlans.forEach(p => {
+        nextState[p.plan_id] = {
+          ...nextState[p.plan_id],
+          is_released: true,
+          partner_multiplier: parsed
+        };
+      });
+      
+      return nextState;
+    });
+  };
+
+  // 🌟 NEW: Handle hiding all currently visible plans
+  const handleHideAllVisible = () => {
+    if (processedPlans.length === 0) return;
+
+    const confirmMessage = `Are you sure you want to hide (unrelease) all ${processedPlans.length} currently visible plans?`;
+    if (!window.confirm(confirmMessage)) return;
+
+    setEditedPlans(prev => {
+      const nextState = { ...prev };
+      
+      processedPlans.forEach(p => {
+        nextState[p.plan_id] = {
+          ...nextState[p.plan_id],
+          is_released: false
+        };
+      });
+      
+      return nextState;
+    });
+  };
+
+  const filteredDestinations = allDestinations.filter(dest =>
+    dest.destinationName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    dest.isoCode.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+  
+  const selectedDestination = allDestinations.find(d => d.destinationID === countryCode);
 
   return (
     <div className="p-6">
@@ -220,7 +260,6 @@ export default function PartnerPlanManager() {
           {data && <p className="text-slate-500">Editing catalog for: <strong className="text-[#077770] text-lg">{data.partner.partner_name}</strong></p>}
         </div>
 
-        {/* Destination Dropdown Selector */}
         <div className="flex items-center gap-3 bg-white p-2 rounded-xl border border-slate-200 shadow-sm relative" ref={dropdownRef}>
           <Globe className="text-[#077770] ml-2" size={20}/>
           
@@ -278,13 +317,8 @@ export default function PartnerPlanManager() {
 
       {data && (
         <>
-          {/* ========================================== */}
-          {/* 🌟 FILTERS & SORTING UI BAR */}
-          {/* ========================================== */}
           <div className="bg-slate-50 rounded-xl border border-slate-200 p-3 mb-6 flex flex-col xl:flex-row items-center justify-between gap-4">
-            
             <div className="flex flex-wrap items-center gap-3 w-full xl:w-auto flex-1">
-              {/* Search */}
               <div className="relative bg-white border border-slate-200 rounded-lg overflow-hidden flex-1 min-w-[200px] max-w-[300px]">
                 <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                 <input 
@@ -299,35 +333,30 @@ export default function PartnerPlanManager() {
               <div className="w-px h-8 bg-slate-200 hidden sm:block mx-1"></div>
               <Filter size={16} className="text-slate-400 hidden sm:block"/>
 
-              {/* Status Filter */}
               <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)} className="bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm font-medium text-slate-700 outline-none cursor-pointer hover:border-slate-300 transition-colors">
                 <option value="all">All Status</option>
                 <option value="released">Released Only</option>
                 <option value="hidden">Hidden Only</option>
               </select>
 
-              {/* SIM Type Filter */}
               <select value={filterSimType} onChange={e => setFilterSimType(e.target.value)} className="bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm font-medium text-slate-700 outline-none cursor-pointer hover:border-slate-300 transition-colors">
                 <option value="all">All SIM Types</option>
                 <option value="1_2">Type 1-2</option>
                 <option value="3_5">Type 3-5 (KYC)</option>
               </select>
 
-              {/* Data Type Filter */}
               <select value={filterData} onChange={e => setFilterData(e.target.value)} className="bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm font-medium text-slate-700 outline-none cursor-pointer hover:border-slate-300 transition-colors">
                 <option value="all">All Data</option>
                 <option value="fixed">Fixed Data</option>
                 <option value="unlimited">Unlimited Data</option>
               </select>
 
-              {/* Features Filter */}
               <select value={filterFeatures} onChange={e => setFilterFeatures(e.target.value)} className="bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm font-medium text-slate-700 outline-none cursor-pointer hover:border-slate-300 transition-colors">
                 <option value="all">All Features</option>
                 <option value="data_only">Data Only</option>
                 <option value="with_voice">With Voice/SMS</option>
               </select>
 
-              {/* Durations Filter */}
               <select value={filterDurations} onChange={e => setFilterDurations(e.target.value)} className="bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm font-medium text-slate-700 outline-none cursor-pointer hover:border-slate-300 transition-colors">
                 <option value="all">All Durations</option>
                 <option value="short">Short (1-7 Days)</option>
@@ -337,7 +366,6 @@ export default function PartnerPlanManager() {
               </select>
             </div>
 
-            {/* Sorting */}
             <div className="flex items-center gap-3 w-full xl:w-auto xl:border-l xl:border-slate-200 xl:pl-4">
               <ArrowUpDown size={16} className="text-slate-400 hidden sm:block"/>
               <select value={sortPrice} onChange={e => setSortPrice(e.target.value)} className="bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm font-medium text-slate-700 outline-none cursor-pointer hover:border-slate-300 transition-colors flex-1 sm:flex-none">
@@ -355,14 +383,49 @@ export default function PartnerPlanManager() {
 
 
           <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-            <div className="p-5 bg-slate-50 border-b border-slate-200 flex justify-between items-center">
+            <div className="p-5 bg-slate-50 border-b border-slate-200 flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4">
               <span className="text-sm font-semibold text-slate-600">Showing {processedPlans.length} plans for {countryCode}</span>
-              <button 
-                onClick={handleBulkSave} disabled={isSaving}
-                className="bg-[#077770] text-white px-6 py-2.5 rounded-xl font-bold flex items-center gap-2 hover:bg-[#065f59] disabled:opacity-50 transition-all shadow-sm shadow-teal-500/20"
-              >
-                <Save size={18} /> {isSaving ? "Saving..." : "Save All Changes"}
-              </button>
+              
+              <div className="flex flex-wrap items-center gap-3 w-full xl:w-auto">
+                
+                {/* 🌟 NEW: Hide All Visible Button */}
+                <button 
+                  onClick={handleHideAllVisible}
+                  disabled={processedPlans.length === 0}
+                  className="bg-white text-rose-600 border border-rose-200 px-4 h-10 rounded-xl text-sm font-bold flex items-center gap-2 hover:bg-rose-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  <EyeOff size={16} /> Hide All
+                </button>
+
+                <div className="flex items-center bg-white border border-slate-200 rounded-xl overflow-hidden h-10 shadow-sm w-full md:w-auto">
+                  <span className="px-3 text-xs font-bold text-slate-500 bg-slate-100 border-r border-slate-200 h-full flex items-center">
+                    GLOBAL MULTIPLIER
+                  </span>
+                  <input 
+                    type="number" 
+                    step="0.1" 
+                    min="1"
+                    value={globalMultiplier}
+                    onChange={(e) => setGlobalMultiplier(e.target.value)}
+                    className="w-20 px-3 py-2 text-sm font-bold text-slate-800 outline-none"
+                    placeholder="1.0"
+                  />
+                  <button 
+                    onClick={handleApplyGlobalMultiplier}
+                    disabled={processedPlans.length === 0}
+                    className="bg-indigo-600 text-white px-4 h-full text-sm font-bold hover:bg-indigo-700 disabled:bg-slate-300 disabled:cursor-not-allowed transition-colors"
+                  >
+                    Apply to List
+                  </button>
+                </div>
+
+                <button 
+                  onClick={handleBulkSave} disabled={isSaving}
+                  className="bg-[#077770] text-white px-6 py-2 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-[#065f59] disabled:opacity-50 transition-all shadow-sm shadow-teal-500/20 h-10 w-full md:w-auto"
+                >
+                  <Save size={18} /> {isSaving ? "Saving..." : "Save All Changes"}
+                </button>
+              </div>
             </div>
 
             <div className="overflow-x-auto">
@@ -393,7 +456,6 @@ export default function PartnerPlanManager() {
                       const editState = editedPlans[p.plan_id] || {};
                       const isExpanded = expandedRowId === p.plan_id;
                       
-                      // Real-time Calculations
                       const basePrice = parseFloat(p.base_price) || 0;
                       const multiplier = parseFloat(editState.partner_multiplier) || 0;
                       const subtotal = basePrice * multiplier;
@@ -401,7 +463,6 @@ export default function PartnerPlanManager() {
                       const finalPrice = subtotal > 0 ? (subtotal + calculatedDelta) : 0;
                       const profit = subtotal > 0 ? (subtotal - basePrice) : 0;
 
-                      // Raw Plan Extractions
                       const raw = p.raw_plan || {};
                       const dataTypeStr = raw.productDataType === "daily" ? "Daily" : "Total";
                       const voiceStr = raw.productVoice === "YES" ? `${raw.productVoiceMinutes} Mins` : "None";
@@ -410,7 +471,6 @@ export default function PartnerPlanManager() {
 
                       return (
                         <React.Fragment key={p.plan_id}>
-                          {/* --- MAIN ROW --- */}
                           <tr className={`hover:bg-slate-50 transition-colors ${isExpanded ? 'bg-slate-50' : ''}`}>
                             <td className="p-4 text-center">
                               <button 
@@ -482,14 +542,12 @@ export default function PartnerPlanManager() {
                             <td className="p-4 text-sm font-extrabold text-emerald-600 bg-emerald-50/30">${profit.toFixed(2)}</td>
                           </tr>
 
-                          {/* --- EXPANDED DETAILS ROW --- */}
                           {isExpanded && (
                             <tr>
                               <td colSpan="10" className="p-0 border-b border-slate-100 bg-slate-50/80">
                                 <div className="px-8 py-6 animate-in slide-in-from-top-2 duration-200">
                                   <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                                     
-                                    {/* Col 1: Network Specs */}
                                     <div className="space-y-4">
                                       <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
                                         <Info size={14}/> Network Specs
@@ -510,7 +568,6 @@ export default function PartnerPlanManager() {
                                       </div>
                                     </div>
 
-                                    {/* Col 2: Plan Identifiers */}
                                     <div className="space-y-4">
                                       <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
                                         <Tag size={14}/> Plan Identifiers
@@ -531,7 +588,6 @@ export default function PartnerPlanManager() {
                                       </div>
                                     </div>
 
-                                    {/* Col 3: Supported Destinations */}
                                     <div className="space-y-4 lg:col-span-1">
                                       <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
                                         <MapPin size={14}/> Supported Destinations ({raw.destinations?.length || 0})
