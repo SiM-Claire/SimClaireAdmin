@@ -51,7 +51,7 @@ export default function PartnerPlanManager() {
       
       if (res.data.status === 200) {
         setData(res.data.data);
-        
+        console.log(res.data.data)
         const initialEdits = {};
         res.data.data.plans.forEach(p => {
           initialEdits[p.plan_id] = {
