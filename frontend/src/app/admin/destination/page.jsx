@@ -39,21 +39,22 @@ const calculateAdminPlanScores = (plan, editState, profileKey) => {
   const { data: w_data, voice: w_voice, sms: w_sms } = profile.weights;
 
   const validity = Math.max(1, parseInt(plan.productValidityDays || 0, 10) || 1);
-  
-  // Calculate price with custom multiplier & delta fee
-  const basePrice = parseFloat(plan.productBasePrice || 0);
+
+  // 1. Base Cost (Fixed baseline so scoring remains consistent)
+  const basePrice = Math.max(0, parseFloat(plan.productBasePrice || 0));
+  const baseDailyCost = basePrice / validity;
+
+  // 2. Retail/Display Calculations (for UI preview only)
   const multiplier = parseFloat(editState?.custom_multiplier) || 1;
   const subtotal = basePrice * multiplier;
   const calculatedDelta = Math.min(subtotal * 0.025, 4);
   const finalPrice = subtotal > 0 ? subtotal + calculatedDelta : basePrice;
 
-  // Step 1: Normalize to "Per-Day" Equivalents
-  const dailyCost = finalPrice / validity;
-
+  // Step 1: Normalize Daily Allowances
   const isUnlimitedData = plan.productDataType === "unlimited";
   const rawDataGb = parseFloat(plan.productDataAllowance || 0);
   const normalizedDataGb = (plan.dataAllowanceUnit || "").toLowerCase() === "mb" ? rawDataGb / 1024 : rawDataGb;
-  const dailyData = isUnlimitedData ? UNLIMITED_VALUES.DATA : (normalizedDataGb / validity);
+  const dailyData = isUnlimitedData ? UNLIMITED_VALUES.DATA : normalizedDataGb / validity;
 
   const hasVoice = plan.productVoice === "Yes" || parseInt(plan.productVoiceMinutes || 0, 10) > 0;
   const isUnlimitedVoice = plan.productVoice === "Unlimited";
@@ -74,12 +75,12 @@ const calculateAdminPlanScores = (plan, editState, profileKey) => {
   const valueScore = (w_data * sData) + (w_voice * sVoice) + (w_sms * sSms);
   const matchPercentage = Math.round(valueScore * 100);
 
-  // Step 4: Compute Value-for-Money (VFM) Score
-  const vfmScore = dailyCost > 0 ? valueScore / dailyCost : 0;
+  // Step 4: Compute VFM Score using baseDailyCost (Prevents Ranking Shifts)
+  const vfmScore = baseDailyCost > 0 ? valueScore / baseDailyCost : 0;
 
   return {
     ...plan,
-    dailyCost,
+    dailyCost: baseDailyCost,
     valueScore,
     matchPercentage,
     vfmScore,
@@ -101,7 +102,7 @@ export default function AdminPlanControlPage() {
   const [plans, setPlans] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  
+  const [autoReleaseMultiplier,setAutoReleaseMultiplier] = useState(1.2)
   // --- BULK EDITING STATES ---
   const [editedPlans, setEditedPlans] = useState({});
   const [isSaving, setIsSaving] = useState(false);
@@ -275,34 +276,29 @@ export default function AdminPlanControlPage() {
   };
 
   // --- 5. ALGORITHMIC PROCESSING ---
-  const recommendedPlans = useMemo(() => {
-    if (!isRecommendationActive) return [];
+ const recommendedPlans = useMemo(() => {
+  if (!isRecommendationActive) return [];
 
-    return plans
-      // Steps 1 - 4: Run scoring calculation
-      .map(p => calculateAdminPlanScores(p, editedPlans[p.productID], algoProfile))
-      // Filter 1: Value Score Threshold (Constraint >= 0.35)
-      .filter(p => p.valueScore >= 0.35)
-      // Filter 2: Validity range & Service structure filter
-      .filter(p => {
-        const days = parseInt(p.productValidityDays || 0, 10);
-        const matchesValidity = days >= Number(algoMinDays) && days <= Number(algoMaxDays);
-        if (!matchesValidity) return false;
+  return plans
+    .map(p => calculateAdminPlanScores(p, editedPlans[p.productID], algoProfile))
+    .filter(p => p.valueScore >= 0.35)
+    .filter(p => {
+      const days = parseInt(p.productValidityDays || 0, 10);
+      const matchesValidity = days >= Number(algoMinDays) && days <= Number(algoMaxDays);
+      if (!matchesValidity) return false;
 
-        const isUnlimited = p.productDataType === "unlimited";
-        const hasVoice = p.productVoice === "Yes" || parseInt(p.productVoiceMinutes || 0, 10) > 0;
-        const hasSms = p.productSms === "Yes" || parseInt(p.productSmsCount || 0, 10) > 0;
+      const isUnlimited = p.productDataType === "unlimited";
+      const hasVoice = p.productVoice === "Yes" || parseInt(p.productVoiceMinutes || 0, 10) > 0;
+      const hasSms = p.productSms === "Yes" || parseInt(p.productSmsCount || 0, 10) > 0;
 
-        if (algoServiceType === "unlimited") return isUnlimited;
-        if (algoServiceType === "data") return !hasVoice && !hasSms && !isUnlimited;
-        if (algoServiceType === "combo") return hasVoice || hasSms;
-        return true;
-      })
-      // Step 3: Sort descending by VFM Score
-      .sort((a, b) => b.vfmScore - a.vfmScore)
-      // Step 4: Slice top results
-      .slice(0, Number(algoPlanCount));
-  }, [plans, editedPlans, isRecommendationActive, algoProfile, algoMinDays, algoMaxDays, algoServiceType, algoPlanCount]);
+      if (algoServiceType === "unlimited") return isUnlimited;
+      if (algoServiceType === "data") return !hasVoice && !hasSms && !isUnlimited;
+      if (algoServiceType === "combo") return hasVoice || hasSms;
+      return true;
+    })
+    .sort((a, b) => b.vfmScore - a.vfmScore)
+    .slice(0, Number(algoPlanCount));
+}, [plans, isRecommendationActive, algoProfile, algoMinDays, algoMaxDays, algoServiceType, algoPlanCount]);
 
   // --- 6. APPLY FILTERS & SORTING ---
   const standardFilteredPlans = useMemo(() => {
@@ -366,22 +362,74 @@ export default function AdminPlanControlPage() {
   const processedPlans = isRecommendationActive ? recommendedPlans : standardFilteredPlans;
 
   // --- 7. AUTO-RELEASE TOP RECOMMENDED PLANS ---
-  const handleBulkReleaseTopPlans = () => {
-    if (!recommendedPlans || recommendedPlans.length === 0) return;
-    console.log(recommendedPlans)
-    setEditedPlans(prev => {
-      const updated = { ...prev };
-      recommendedPlans.forEach(p => {
-        updated[p.productID] = {
-          ...updated[p.productID],
-          is_active: true,
-          custom_multiplier: updated[p.productID]?.custom_multiplier || "1.2"
-        };
-      });
-      return updated;
+ const handleBulkReleaseTopPlans = async (autoSave = false) => {
+  if (!recommendedPlans || recommendedPlans.length === 0) {
+    alert("No recommended plans available to release.");
+    return;
+  }
+
+  const selectedMultiplier = parseFloat(autoReleaseMultiplier) || 1.2;
+
+  // 1. Update local state with the chosen multiplier
+  let updatedState = {};
+  setEditedPlans((prev) => {
+    const updated = { ...prev };
+
+    recommendedPlans.forEach((p) => {
+      const planId = p.productID || p.id || p.plan_id;
+      if (!planId) return;
+
+      const existingEdit = updated[planId] || {};
+
+      updated[planId] = {
+        ...existingEdit,
+        plan_id: planId,
+        is_active: true,
+        custom_multiplier: String(selectedMultiplier),
+        priority: existingEdit.priority ?? p.control?.priority ?? 10,
+      };
     });
-    alert(`Successfully activated and marked top ${recommendedPlans.length} plans as Released! Don't forget to click 'Save All Changes'.`);
-  };
+
+    updatedState = updated;
+    return updated;
+  });
+
+  // 2. Persist to database
+  if (autoSave) {
+    setIsSaving(true);
+    try {
+      const plansArray = Object.values(updatedState).map((p) => ({
+        plan_id: p.plan_id,
+        is_active: Boolean(p.is_active),
+        custom_multiplier: p.is_active && p.custom_multiplier ? parseFloat(p.custom_multiplier) : null,
+        priority: p.priority || 10,
+      }));
+
+      const res = await axios.post(
+        `${API_BASE}/admin/plan-control/add`,
+        {
+          country_code: countryCode,
+          plans: plansArray,
+        },
+        {
+          headers: { Authorization: `Bearer ${adminToken}` },
+        }
+      );
+
+      if (res.data.status === 200 || res.data.success || res.status === 200) {
+        alert(`Successfully released and saved top ${recommendedPlans.length} plans with ${selectedMultiplier}x multiplier!`);
+        fetchPlans();
+      } else {
+        alert("Error: " + (res.data.message || "Failed to save"));
+      }
+    } catch (err) {
+      console.error("Auto-release save failed:", err);
+      alert(err.response?.data?.message || "Failed to save released plans to database.");
+    } finally {
+      setIsSaving(false);
+    }
+  }
+};
 
   // Country Dropdown Helpers
   const filteredDestinations = allDestinations.filter(dest =>
@@ -710,21 +758,47 @@ export default function AdminPlanControlPage() {
                 Showing {processedPlans.length} plans for {countryCode}
               </span>
               {isRecommendationActive && (
+                
                 <span className="bg-amber-100 text-amber-800 text-xs px-2.5 py-0.5 rounded-full font-bold flex items-center gap-1">
-                  <Award size={13} /> Algorithm Rank Mode
+                  <Award size={13} /> Algorithm Rank Mode (Beta)
                 </span>
+                
               )}
             </div>
 
             <div className="flex items-center gap-2 w-full sm:w-auto">
               {isRecommendationActive && (
-                <button
-                  onClick={handleBulkReleaseTopPlans}
-                  className="flex-1 sm:flex-initial bg-amber-500 text-white px-4 py-2.5 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 hover:bg-amber-600 transition-all shadow-sm cursor-pointer"
-                >
-                  <CheckSquare size={16} /> Auto-Release Top {processedPlans.length} Plans
-                </button>
-              )}
+  <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 p-1.5 rounded-xl">
+    {/* Multiplier Input Box */}
+    <div className="flex items-center gap-1.5 pl-2">
+      <span className="text-[11px] font-bold text-amber-900 uppercase">Rate:</span>
+      <div className="relative flex items-center">
+        <input
+          type="number"
+          step="0.1"
+          min="1"
+          max="10"
+          value={autoReleaseMultiplier}
+          onChange={(e) => setAutoReleaseMultiplier(e.target.value)}
+          className="w-16 px-2 py-1.5 bg-white border border-amber-300 rounded-lg text-xs font-black text-center text-slate-900 outline-none focus:ring-2 focus:ring-amber-500 shadow-sm"
+          placeholder="1.5"
+        />
+        <span className="text-xs font-bold text-amber-800 ml-1">x</span>
+      </div>
+    </div>
+
+    {/* Auto-Release Button */}
+    <button
+      type="button"
+      onClick={() => handleBulkReleaseTopPlans(true)}
+      disabled={isSaving}
+      className="bg-amber-500 text-white px-4 py-2 rounded-lg font-bold text-xs flex items-center justify-center gap-1.5 hover:bg-amber-600 active:scale-95 transition-all shadow-sm cursor-pointer disabled:opacity-50"
+    >
+      <CheckSquare size={15} />
+      {isSaving ? "Releasing..." : `Auto-Release Top ${processedPlans.length} Plans`}
+    </button>
+  </div>
+)}
               
               <button 
                 onClick={handleBulkSave} 
