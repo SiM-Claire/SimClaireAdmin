@@ -1,16 +1,91 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import axios from "axios";
 import { 
   Search, Download, Save, 
   ChevronDown, ChevronUp, Check, ArrowLeft,
-  Info, Filter, ArrowUpDown, Globe
+  Info, Filter, ArrowUpDown, Globe, Sparkles,
+  RotateCcw, Award, TrendingUp, CheckSquare, Zap
 } from "lucide-react";
 
 // 🌟 Import all destinations
 import { allDestinations } from "@/data/destinationData";
+
+// --- Algorithm Constants ---
+const USER_PROFILES = {
+  balanced: { name: "Balanced", weights: { data: 0.5, voice: 0.4, sms: 0.1 } },
+  data_only: { name: "Data Only", weights: { data: 1.0, voice: 0.0, sms: 0.0 } },
+  call_data: { name: "Call + Data", weights: { data: 0.7, voice: 0.3, sms: 0.0 } },
+  call_data_sms: { name: "Call + Data + Message", weights: { data: 0.6, voice: 0.3, sms: 0.1 } }
+};
+
+const SATURATION_TARGETS = {
+  DATA_TARGET: 3.0,   // GB/day
+  VOICE_TARGET: 45.0, // Mins/day
+  SMS_TARGET: 10.0    // SMS/day
+};
+
+const UNLIMITED_VALUES = {
+  DATA: 5.0,   // GB/day
+  VOICE: 100.0, // Mins/day
+  SMS: 50.0    // SMS/day
+};
+
+// --- Algorithm Calculator for Admin Schema ---
+const calculateAdminPlanScores = (plan, editState, profileKey) => {
+  const profile = USER_PROFILES[profileKey] || USER_PROFILES.balanced;
+  const { data: w_data, voice: w_voice, sms: w_sms } = profile.weights;
+
+  const validity = Math.max(1, parseInt(plan.productValidityDays || 0, 10) || 1);
+  
+  // Calculate price with custom multiplier & delta fee
+  const basePrice = parseFloat(plan.productBasePrice || 0);
+  const multiplier = parseFloat(editState?.custom_multiplier) || 1;
+  const subtotal = basePrice * multiplier;
+  const calculatedDelta = Math.min(subtotal * 0.025, 4);
+  const finalPrice = subtotal > 0 ? subtotal + calculatedDelta : basePrice;
+
+  // Step 1: Normalize to "Per-Day" Equivalents
+  const dailyCost = finalPrice / validity;
+
+  const isUnlimitedData = plan.productDataType === "unlimited";
+  const rawDataGb = parseFloat(plan.productDataAllowance || 0);
+  const normalizedDataGb = (plan.dataAllowanceUnit || "").toLowerCase() === "mb" ? rawDataGb / 1024 : rawDataGb;
+  const dailyData = isUnlimitedData ? UNLIMITED_VALUES.DATA : (normalizedDataGb / validity);
+
+  const hasVoice = plan.productVoice === "Yes" || parseInt(plan.productVoiceMinutes || 0, 10) > 0;
+  const isUnlimitedVoice = plan.productVoice === "Unlimited";
+  const rawVoiceMins = parseInt(plan.productVoiceMinutes || 0, 10);
+  const dailyVoice = isUnlimitedVoice ? UNLIMITED_VALUES.VOICE : (hasVoice ? rawVoiceMins / validity : 0);
+
+  const hasSms = plan.productSms === "Yes" || parseInt(plan.productSmsCount || 0, 10) > 0;
+  const isUnlimitedSms = plan.productSms === "Unlimited";
+  const rawSmsCount = parseInt(plan.productSmsCount || 0, 10);
+  const dailySms = isUnlimitedSms ? UNLIMITED_VALUES.SMS : (hasSms ? rawSmsCount / validity : 0);
+
+  // Step 2: Compute Single-Attribute Utility Scores (S_i)
+  const sData = Math.min(1.0, dailyData / SATURATION_TARGETS.DATA_TARGET);
+  const sVoice = Math.min(1.0, dailyVoice / SATURATION_TARGETS.VOICE_TARGET);
+  const sSms = Math.min(1.0, dailySms / SATURATION_TARGETS.SMS_TARGET);
+
+  // Step 3: Compute Value Score (Utility Match)
+  const valueScore = (w_data * sData) + (w_voice * sVoice) + (w_sms * sSms);
+  const matchPercentage = Math.round(valueScore * 100);
+
+  // Step 4: Compute Value-for-Money (VFM) Score
+  const vfmScore = dailyCost > 0 ? valueScore / dailyCost : 0;
+
+  return {
+    ...plan,
+    dailyCost,
+    valueScore,
+    matchPercentage,
+    vfmScore,
+    calculatedFinalPrice: finalPrice
+  };
+};
 
 export default function AdminPlanControlPage() {
   const router = useRouter();
@@ -41,6 +116,14 @@ export default function AdminPlanControlPage() {
   
   const [sortPrice, setSortPrice] = useState("default"); 
   const [sortValidity, setSortValidity] = useState("default"); 
+
+  // --- RECOMMENDER ENGINE STATES ---
+  const [isRecommendationActive, setIsRecommendationActive] = useState(false);
+  const [algoProfile, setAlgoProfile] = useState("balanced");
+  const [algoPlanCount, setAlgoPlanCount] = useState(10);
+  const [algoMinDays, setAlgoMinDays] = useState(1);
+  const [algoMaxDays, setAlgoMaxDays] = useState(30);
+  const [algoServiceType, setAlgoServiceType] = useState("all");
 
   // --- UI STATES ---
   const [expandedPlanId, setExpandedPlanId] = useState(null);
@@ -92,10 +175,10 @@ export default function AdminPlanControlPage() {
 
   useEffect(() => {
     fetchPlans();
-    // Reset filters when changing country
     setPlanSearchQuery("");
     setFilterStatus("all");
     setExpandedPlanId(null);
+    setIsRecommendationActive(false);
   }, [countryCode]);
 
   // --- 2. HANDLE LOCAL EDITS ---
@@ -113,7 +196,6 @@ export default function AdminPlanControlPage() {
   const handleBulkSave = async () => {
     setIsSaving(true);
     
-    // Map edited state into the specific array format required by your backend
     const plansArray = Object.values(editedPlans).map(p => ({
       plan_id: p.plan_id,
       is_active: p.is_active,
@@ -134,7 +216,7 @@ export default function AdminPlanControlPage() {
       
       if (res.data.status === 200 || res.data.success || res.status === 200) {
         alert("Pricing updated successfully!");
-        fetchPlans(); // Refresh data
+        fetchPlans();
       } else {
         alert("Error: " + (res.data.message || "Failed to update"));
       }
@@ -192,63 +274,114 @@ export default function AdminPlanControlPage() {
     document.body.removeChild(link);
   };
 
-  // --- 5. APPLY FILTERS & SORTING ---
-  const processedPlans = [...plans]
-    .filter(p => {
-      const matchesSearch = (p.productName || "").toLowerCase().includes(planSearchQuery.toLowerCase()) || 
-                            (p.productID || "").toLowerCase().includes(planSearchQuery.toLowerCase());
-      
-      let matchesStatus = true;
-      if (filterStatus === "added") matchesStatus = p.is_configured;
-      if (filterStatus === "not_added") matchesStatus = !p.is_configured;
-      if (filterStatus === "released") matchesStatus = p.is_configured && p.control?.is_active === true;
-      if (filterStatus === "unreleased") matchesStatus = p.is_configured && p.control?.is_active === false;
+  // --- 5. ALGORITHMIC PROCESSING ---
+  const recommendedPlans = useMemo(() => {
+    if (!isRecommendationActive) return [];
 
-      let matchesData = true;
-      if (filterDataType === "unlimited") matchesData = p.productDataType === "unlimited";
-      if (filterDataType === "fixed") matchesData = p.productDataType !== "unlimited";
+    return plans
+      // Steps 1 - 4: Run scoring calculation
+      .map(p => calculateAdminPlanScores(p, editedPlans[p.productID], algoProfile))
+      // Filter 1: Value Score Threshold (Constraint >= 0.35)
+      .filter(p => p.valueScore >= 0.35)
+      // Filter 2: Validity range & Service structure filter
+      .filter(p => {
+        const days = parseInt(p.productValidityDays || 0, 10);
+        const matchesValidity = days >= Number(algoMinDays) && days <= Number(algoMaxDays);
+        if (!matchesValidity) return false;
 
-      let matchesFeatures = true;
-      const hasVoice = p.productVoice === 'Yes' || parseInt(p.productVoiceMinutes || 0) > 0;
-      if (filterFeatures === "data_only") matchesFeatures = !hasVoice;
-      if (filterFeatures === "with_voice") matchesFeatures = hasVoice;
+        const isUnlimited = p.productDataType === "unlimited";
+        const hasVoice = p.productVoice === "Yes" || parseInt(p.productVoiceMinutes || 0, 10) > 0;
+        const hasSms = p.productSms === "Yes" || parseInt(p.productSmsCount || 0, 10) > 0;
 
-      let matchesValidity = true;
-      const days = parseInt(p.productValidityDays || 0, 10);
-      if (filterValidity === "short") matchesValidity = days >= 1 && days <= 7;
-      if (filterValidity === "medium") matchesValidity = days >= 8 && days <= 15;
-      if (filterValidity === "long") matchesValidity = days >= 16 && days <= 30;
-      if (filterValidity === "extended") matchesValidity = days > 30;
+        if (algoServiceType === "unlimited") return isUnlimited;
+        if (algoServiceType === "data") return !hasVoice && !hasSms && !isUnlimited;
+        if (algoServiceType === "combo") return hasVoice || hasSms;
+        return true;
+      })
+      // Step 3: Sort descending by VFM Score
+      .sort((a, b) => b.vfmScore - a.vfmScore)
+      // Step 4: Slice top results
+      .slice(0, Number(algoPlanCount));
+  }, [plans, editedPlans, isRecommendationActive, algoProfile, algoMinDays, algoMaxDays, algoServiceType, algoPlanCount]);
 
-      let matchesSimType = true;
-      const typeNum = parseInt(p.productType || 0, 10);
-      if (filterSimType === "1_2") matchesSimType = typeNum >= 1 && typeNum <= 2;
-      if (filterSimType === "3_5") matchesSimType = typeNum >= 3 && typeNum <= 5;
+  // --- 6. APPLY FILTERS & SORTING ---
+  const standardFilteredPlans = useMemo(() => {
+    return [...plans]
+      .filter(p => {
+        const matchesSearch = (p.productName || "").toLowerCase().includes(planSearchQuery.toLowerCase()) || 
+                              (p.productID || "").toLowerCase().includes(planSearchQuery.toLowerCase());
+        
+        let matchesStatus = true;
+        if (filterStatus === "added") matchesStatus = p.is_configured;
+        if (filterStatus === "not_added") matchesStatus = !p.is_configured;
+        if (filterStatus === "released") matchesStatus = p.is_configured && p.control?.is_active === true;
+        if (filterStatus === "unreleased") matchesStatus = p.is_configured && p.control?.is_active === false;
 
-      return matchesSearch && matchesStatus && matchesData && matchesFeatures && matchesValidity && matchesSimType;
-    })
-    .sort((a, b) => {
-      if (sortPrice === "default" && sortValidity === "default") return 0;
+        let matchesData = true;
+        if (filterDataType === "unlimited") matchesData = p.productDataType === "unlimited";
+        if (filterDataType === "fixed") matchesData = p.productDataType !== "unlimited";
 
-      // 🌟 Sort based on the live-edited multipliers
-      const multA = parseFloat(editedPlans[a.productID]?.custom_multiplier) || 1;
-      const multB = parseFloat(editedPlans[b.productID]?.custom_multiplier) || 1;
-      const priceA = parseFloat(a.productBasePrice || 0) * multA;
-      const priceB = parseFloat(b.productBasePrice || 0) * multB;
+        let matchesFeatures = true;
+        const hasVoice = p.productVoice === 'Yes' || parseInt(p.productVoiceMinutes || 0, 10) > 0;
+        if (filterFeatures === "data_only") matchesFeatures = !hasVoice;
+        if (filterFeatures === "with_voice") matchesFeatures = hasVoice;
 
-      const valA = parseInt(a.productValidityDays || 0);
-      const valB = parseInt(b.productValidityDays || 0);
+        let matchesValidity = true;
+        const days = parseInt(p.productValidityDays || 0, 10);
+        if (filterValidity === "short") matchesValidity = days >= 1 && days <= 7;
+        if (filterValidity === "medium") matchesValidity = days >= 8 && days <= 15;
+        if (filterValidity === "long") matchesValidity = days >= 16 && days <= 30;
+        if (filterValidity === "extended") matchesValidity = days > 30;
 
-      if (sortPrice !== "default") {
-        if (priceA !== priceB) return sortPrice === "asc" ? priceA - priceB : priceB - priceA;
-      }
-      
-      if (sortValidity !== "default") {
-        if (valA !== valB) return sortValidity === "asc" ? valA - valB : valB - valA;
-      }
+        let matchesSimType = true;
+        const typeNum = parseInt(p.productType || 0, 10);
+        if (filterSimType === "1_2") matchesSimType = typeNum >= 1 && typeNum <= 2;
+        if (filterSimType === "3_5") matchesSimType = typeNum >= 3 && typeNum <= 5;
 
-      return 0;
+        return matchesSearch && matchesStatus && matchesData && matchesFeatures && matchesValidity && matchesSimType;
+      })
+      .sort((a, b) => {
+        if (sortPrice === "default" && sortValidity === "default") return 0;
+
+        const multA = parseFloat(editedPlans[a.productID]?.custom_multiplier) || 1;
+        const multB = parseFloat(editedPlans[b.productID]?.custom_multiplier) || 1;
+        const priceA = parseFloat(a.productBasePrice || 0) * multA;
+        const priceB = parseFloat(b.productBasePrice || 0) * multB;
+
+        const valA = parseInt(a.productValidityDays || 0, 10);
+        const valB = parseInt(b.productValidityDays || 0, 10);
+
+        if (sortPrice !== "default") {
+          if (priceA !== priceB) return sortPrice === "asc" ? priceA - priceB : priceB - priceA;
+        }
+        
+        if (sortValidity !== "default") {
+          if (valA !== valB) return sortValidity === "asc" ? valA - valB : valB - valA;
+        }
+
+        return 0;
+      });
+  }, [plans, planSearchQuery, filterStatus, filterDataType, filterFeatures, filterValidity, filterSimType, sortPrice, sortValidity, editedPlans]);
+
+  const processedPlans = isRecommendationActive ? recommendedPlans : standardFilteredPlans;
+
+  // --- 7. AUTO-RELEASE TOP RECOMMENDED PLANS ---
+  const handleBulkReleaseTopPlans = () => {
+    if (!recommendedPlans || recommendedPlans.length === 0) return;
+    console.log(recommendedPlans)
+    setEditedPlans(prev => {
+      const updated = { ...prev };
+      recommendedPlans.forEach(p => {
+        updated[p.productID] = {
+          ...updated[p.productID],
+          is_active: true,
+          custom_multiplier: updated[p.productID]?.custom_multiplier || "1.2"
+        };
+      });
+      return updated;
     });
+    alert(`Successfully activated and marked top ${recommendedPlans.length} plans as Released! Don't forget to click 'Save All Changes'.`);
+  };
 
   // Country Dropdown Helpers
   const filteredDestinations = allDestinations.filter(dest =>
@@ -267,7 +400,7 @@ export default function AdminPlanControlPage() {
             
             {/* Title & Country Selector */}
             <div>
-              <button onClick={() => router.back()} className="text-gray-400 hover:text-blue-600 flex items-center text-sm font-bold mb-3 transition-colors">
+              <button onClick={() => router.back()} className="text-gray-400 hover:text-blue-600 flex items-center text-sm font-bold mb-3 transition-colors cursor-pointer">
                 <ArrowLeft className="h-4 w-4 mr-1" /> Back to Dashboard
               </button>
               
@@ -293,9 +426,9 @@ export default function AdminPlanControlPage() {
                     <div className="absolute top-[110%] left-0 w-full min-w-[280px] bg-white border border-slate-200 rounded-xl shadow-xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
                       <div className="p-2 border-b border-slate-100 bg-slate-50 flex items-center gap-2">
                         <Search size={16} className="text-slate-400 ml-2 shrink-0" />
-                        <input
-                          type="text"
-                          placeholder="Search country or code..."
+                        <input 
+                          type="text" 
+                          placeholder="Search country or code..." 
                           value={countrySearchQuery}
                           onChange={(e) => setCountrySearchQuery(e.target.value)}
                           className="w-full bg-transparent border-none outline-none text-sm p-1 text-slate-700 font-medium"
@@ -337,123 +470,233 @@ export default function AdminPlanControlPage() {
             {/* Export CSV */}
             <button 
               onClick={handleExportCSV}
-              className="flex items-center justify-center gap-2 bg-emerald-50 text-emerald-700 border border-emerald-200 px-5 py-2.5 rounded-xl text-sm font-bold hover:bg-emerald-100 transition-colors shrink-0 shadow-sm"
+              className="flex items-center justify-center gap-2 bg-emerald-50 text-emerald-700 border border-emerald-200 px-5 py-2.5 rounded-xl text-sm font-bold hover:bg-emerald-100 transition-colors shrink-0 shadow-sm cursor-pointer"
             >
               <Download className="h-4 w-4" /> Export Catalog
             </button>
           </div>
 
-          {/* Filters & Sort Bar */}
-          <div className="flex flex-col lg:flex-row items-center gap-3 bg-gray-50 p-3 rounded-xl border border-gray-100 flex-wrap">
-            
-            {/* Search */}
-            <div className="relative w-full lg:w-64 shrink-0">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-              <input 
-                type="text" 
-                placeholder="Search Plan Name/ID..." 
-                value={planSearchQuery}
-                onChange={(e) => setPlanSearchQuery(e.target.value)}
-                className="w-full pl-9 pr-4 py-2 bg-white border border-gray-200 rounded-lg text-sm font-medium focus:ring-2 focus:ring-blue-500 outline-none transition-shadow"
-              />
+          {/* RECOMMENDER ENGINE FORM SECTION FOR ADMIN */}
+          <div className="mb-6 p-5 bg-gradient-to-r from-teal-50/50 via-slate-50 to-blue-50/50 border border-teal-100 rounded-xl">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pb-3 mb-4 border-b border-teal-100/60">
+              <div className="flex items-center gap-2">
+                <div className="p-1.5 bg-[#077770] text-white rounded-lg shadow-sm">
+                  <Sparkles size={16} />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-slate-800">Admin Recommender &amp; Quick-Release Engine</h3>
+                  <p className="text-xs text-slate-500">Rank catalog by Value Score &amp; VFM efficiency to quickly identify and activate top customer plans</p>
+                </div>
+              </div>
+              {isRecommendationActive && (
+                <button
+                  onClick={() => setIsRecommendationActive(false)}
+                  className="flex items-center gap-1 text-xs font-bold text-slate-500 hover:text-red-600 transition-colors cursor-pointer"
+                >
+                  <RotateCcw size={13} />View All
+                </button>
+              )}
             </div>
 
-            <div className="h-6 w-px bg-gray-300 hidden lg:block mx-1"></div>
-
-            {/* Filters */}
-            <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto flex-1">
-              <div className="flex items-center gap-2 w-full sm:w-auto">
-                <Filter className="h-4 w-4 text-gray-400 shrink-0" />
-                <select 
-                  value={filterStatus}
-                  onChange={(e) => setFilterStatus(e.target.value)}
-                  className="w-full sm:w-auto bg-white border border-gray-200 text-gray-700 text-sm rounded-lg focus:ring-blue-500 block p-2 outline-none cursor-pointer"
+            <form 
+              onSubmit={(e) => {
+                e.preventDefault();
+                setIsRecommendationActive(true);
+              }}
+              className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 items-end"
+            >
+              <div>
+                <label className="block text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-1.5">Customer Persona</label>
+                <select
+                  value={algoProfile}
+                  onChange={(e) => setAlgoProfile(e.target.value)}
+                  className="w-full bg-white border border-slate-200 text-slate-800 text-xs font-semibold rounded-lg p-2 outline-none focus:ring-2 focus:ring-teal-500 cursor-pointer shadow-sm"
                 >
-                  <option value="all">All Status</option>
-                  <option value="added">Configured</option>
-                  <option value="not_added">Not Added</option>
-                  <option value="released">Released</option>
-                  <option value="unreleased">Unreleased</option>
+                  <option value="balanced">Balanced (50% Data, 40% Voice, 10% SMS)</option>
+                  <option value="data_only">Data Only (100% Data)</option>
+                  <option value="call_data">Call + Data (70% Data, 30% Voice)</option>
+                  <option value="call_data_sms">Call + Data + Message (60% Data, 30% Voice, 10% SMS)</option>
                 </select>
               </div>
 
-              <select 
-                value={filterSimType}
-                onChange={(e) => setFilterSimType(e.target.value)}
-                className="w-full sm:w-auto bg-white border border-gray-200 text-gray-700 text-sm rounded-lg focus:ring-blue-500 block p-2 outline-none cursor-pointer"
-              >
-                <option value="all">All SIM Types</option>
-                <option value="1_2">Type 1 to 2</option>
-                <option value="3_5">Type 3 to 5</option>
-              </select>
+              <div>
+                <div className="flex justify-between items-center mb-1.5">
+                  <label className="text-[11px] font-bold text-slate-600 uppercase tracking-wider">Top Limit</label>
+                  <span className="text-[11px] font-extrabold text-[#077770] bg-teal-100/70 px-1.5 py-0.5 rounded">Top {algoPlanCount}</span>
+                </div>
+                <input
+                  type="range"
+                  min="3"
+                  max="30"
+                  step="1"
+                  value={algoPlanCount}
+                  onChange={(e) => setAlgoPlanCount(Number(e.target.value))}
+                  className="w-full accent-[#077770] cursor-pointer"
+                />
+              </div>
 
-              <select 
-                value={filterDataType}
-                onChange={(e) => setFilterDataType(e.target.value)}
-                className="w-full sm:w-auto bg-white border border-gray-200 text-gray-700 text-sm rounded-lg focus:ring-blue-500 block p-2 outline-none cursor-pointer"
-              >
-                <option value="all">All Data</option>
-                <option value="unlimited">Unlimited Data</option>
-                <option value="fixed">Fixed Data</option>
-              </select>
+              <div>
+                <label className="block text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-1.5">Validity (Days)</label>
+                <div className="flex items-center gap-1.5">
+                  <input
+                    type="number"
+                    min="1"
+                    max={algoMaxDays}
+                    value={algoMinDays}
+                    onChange={(e) => setAlgoMinDays(Math.max(1, Number(e.target.value)))}
+                    placeholder="Min"
+                    className="w-full bg-white border border-slate-200 text-slate-800 text-xs font-semibold rounded-lg p-2 text-center outline-none focus:ring-2 focus:ring-teal-500 shadow-sm"
+                  />
+                  <span className="text-slate-400 font-bold">-</span>
+                  <input
+                    type="number"
+                    min={algoMinDays}
+                    value={algoMaxDays}
+                    onChange={(e) => setAlgoMaxDays(Math.max(Number(algoMinDays), Number(e.target.value)))}
+                    placeholder="Max"
+                    className="w-full bg-white border border-slate-200 text-slate-800 text-xs font-semibold rounded-lg p-2 text-center outline-none focus:ring-2 focus:ring-teal-500 shadow-sm"
+                  />
+                </div>
+              </div>
 
-              <select 
-                value={filterFeatures}
-                onChange={(e) => setFilterFeatures(e.target.value)}
-                className="w-full sm:w-auto bg-white border border-gray-200 text-gray-700 text-sm rounded-lg focus:ring-blue-500 block p-2 outline-none cursor-pointer"
-              >
-                <option value="all">All Features</option>
-                <option value="data_only">Data Only</option>
-                <option value="with_voice">Includes Voice</option>
-              </select>
+              <div>
+                <label className="block text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-1.5">Service Type</label>
+                <select
+                  value={algoServiceType}
+                  onChange={(e) => setAlgoServiceType(e.target.value)}
+                  className="w-full bg-white border border-slate-200 text-slate-800 text-xs font-semibold rounded-lg p-2 outline-none focus:ring-2 focus:ring-teal-500 cursor-pointer shadow-sm"
+                >
+                  <option value="all">All Types</option>
+                  <option value="unlimited">Unlimited Data</option>
+                  <option value="data">Data Only</option>
+                  <option value="combo">Combo (Voice/SMS)</option>
+                </select>
+              </div>
 
-              <select 
-                value={filterValidity}
-                onChange={(e) => setFilterValidity(e.target.value)}
-                className="w-full sm:w-auto bg-white border border-gray-200 text-gray-700 text-sm rounded-lg focus:ring-blue-500 block p-2 outline-none cursor-pointer"
-              >
-                <option value="all">All Durations</option>
-                <option value="short">1 - 7 Days</option>
-                <option value="medium">8 - 15 Days</option>
-                <option value="long">16 - 30 Days</option>
-                <option value="extended">31+ Days</option>
-              </select>
-            </div>
-
-            <div className="h-6 w-px bg-gray-300 hidden lg:block mx-1"></div>
-
-            {/* Sorts */}
-            <div className="flex flex-wrap sm:flex-nowrap items-center gap-2 w-full lg:w-auto shrink-0">
-              <ArrowUpDown className="h-4 w-4 text-gray-400 shrink-0" />
-              
-              <select 
-                value={sortPrice}
-                onChange={(e) => {
-                  setSortPrice(e.target.value);
-                  setSortValidity("default");
-                }}
-                className="w-full sm:w-auto bg-white border border-gray-200 text-gray-700 text-sm font-semibold rounded-lg focus:ring-blue-500 block p-2 outline-none cursor-pointer"
-              >
-                <option value="default">Sort Price: Default</option>
-                <option value="asc">Price: Low to High</option>
-                <option value="desc">Price: High to Low</option>
-              </select>
-
-              <select 
-                value={sortValidity}
-                onChange={(e) => {
-                  setSortValidity(e.target.value);
-                  setSortPrice("default");
-                }}
-                className="w-full sm:w-auto bg-white border border-gray-200 text-gray-700 text-sm font-semibold rounded-lg focus:ring-blue-500 block p-2 outline-none cursor-pointer"
-              >
-                <option value="default">Sort Validity: Default</option>
-                <option value="asc">Validity: Short to Long</option>
-                <option value="desc">Validity: Long to Short</option>
-              </select>
-            </div>
-
+              <div>
+                <button
+                  type="submit"
+                  className="w-full py-2 bg-[#077770] text-white font-bold text-xs rounded-lg shadow-sm hover:bg-[#065f59] active:scale-95 transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                >
+                  <Sparkles size={14} /> Calculate Top Plans
+                </button>
+              </div>
+            </form>
           </div>
+
+          {/* Standard Filters & Sort Bar (Visible when Recommender is not overriding) */}
+          {!isRecommendationActive && (
+            <div className="flex flex-col lg:flex-row items-center gap-3 bg-gray-50 p-3 rounded-xl border border-gray-100 flex-wrap">
+              
+              {/* Search */}
+              <div className="relative w-full lg:w-64 shrink-0">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <input 
+                  type="text" 
+                  placeholder="Search Plan Name/ID..." 
+                  value={planSearchQuery}
+                  onChange={(e) => setPlanSearchQuery(e.target.value)}
+                  className="w-full pl-9 pr-4 py-2 bg-white border border-gray-200 rounded-lg text-sm font-medium focus:ring-2 focus:ring-blue-500 outline-none transition-shadow"
+                />
+              </div>
+
+              <div className="h-6 w-px bg-gray-300 hidden lg:block mx-1"></div>
+
+              {/* Filters */}
+              <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto flex-1">
+                <div className="flex items-center gap-2 w-full sm:w-auto">
+                  <Filter className="h-4 w-4 text-gray-400 shrink-0" />
+                  <select 
+                    value={filterStatus}
+                    onChange={(e) => setFilterStatus(e.target.value)}
+                    className="w-full sm:w-auto bg-white border border-gray-200 text-gray-700 text-sm rounded-lg focus:ring-blue-500 block p-2 outline-none cursor-pointer"
+                  >
+                    <option value="all">All Status</option>
+                    <option value="added">Configured</option>
+                    <option value="not_added">Not Added</option>
+                    <option value="released">Released</option>
+                    <option value="unreleased">Unreleased</option>
+                  </select>
+                </div>
+
+                <select 
+                  value={filterSimType}
+                  onChange={(e) => setFilterSimType(e.target.value)}
+                  className="w-full sm:w-auto bg-white border border-gray-200 text-gray-700 text-sm rounded-lg focus:ring-blue-500 block p-2 outline-none cursor-pointer"
+                >
+                  <option value="all">All SIM Types</option>
+                  <option value="1_2">Type 1 to 2</option>
+                  <option value="3_5">Type 3 to 5</option>
+                </select>
+
+                <select 
+                  value={filterDataType}
+                  onChange={(e) => setFilterDataType(e.target.value)}
+                  className="w-full sm:w-auto bg-white border border-gray-200 text-gray-700 text-sm rounded-lg focus:ring-blue-500 block p-2 outline-none cursor-pointer"
+                >
+                  <option value="all">All Data</option>
+                  <option value="unlimited">Unlimited Data</option>
+                  <option value="fixed">Fixed Data</option>
+                </select>
+
+                <select 
+                  value={filterFeatures}
+                  onChange={(e) => setFilterFeatures(e.target.value)}
+                  className="w-full sm:w-auto bg-white border border-gray-200 text-gray-700 text-sm rounded-lg focus:ring-blue-500 block p-2 outline-none cursor-pointer"
+                >
+                  <option value="all">All Features</option>
+                  <option value="data_only">Data Only</option>
+                  <option value="with_voice">Includes Voice</option>
+                </select>
+
+                <select 
+                  value={filterValidity}
+                  onChange={(e) => setFilterValidity(e.target.value)}
+                  className="w-full sm:w-auto bg-white border border-gray-200 text-gray-700 text-sm rounded-lg focus:ring-blue-500 block p-2 outline-none cursor-pointer"
+                >
+                  <option value="all">All Durations</option>
+                  <option value="short">1 - 7 Days</option>
+                  <option value="medium">8 - 15 Days</option>
+                  <option value="long">16 - 30 Days</option>
+                  <option value="extended">31+ Days</option>
+                </select>
+              </div>
+
+              <div className="h-6 w-px bg-gray-300 hidden lg:block mx-1"></div>
+
+              {/* Sorts */}
+              <div className="flex flex-wrap sm:flex-nowrap items-center gap-2 w-full lg:w-auto shrink-0">
+                <ArrowUpDown className="h-4 w-4 text-gray-400 shrink-0" />
+                
+                <select 
+                  value={sortPrice}
+                  onChange={(e) => {
+                    setSortPrice(e.target.value);
+                    setSortValidity("default");
+                  }}
+                  className="w-full sm:w-auto bg-white border border-gray-200 text-gray-700 text-sm font-semibold rounded-lg focus:ring-blue-500 block p-2 outline-none cursor-pointer"
+                >
+                  <option value="default">Sort Price: Default</option>
+                  <option value="asc">Price: Low to High</option>
+                  <option value="desc">Price: High to Low</option>
+                </select>
+
+                <select 
+                  value={sortValidity}
+                  onChange={(e) => {
+                    setSortValidity(e.target.value);
+                    setSortPrice("default");
+                  }}
+                  className="w-full sm:w-auto bg-white border border-gray-200 text-gray-700 text-sm font-semibold rounded-lg focus:ring-blue-500 block p-2 outline-none cursor-pointer"
+                >
+                  <option value="default">Sort Validity: Default</option>
+                  <option value="asc">Validity: Short to Long</option>
+                  <option value="desc">Validity: Long to Short</option>
+                </select>
+              </div>
+
+            </div>
+          )}
           
         </div>
 
@@ -461,15 +704,36 @@ export default function AdminPlanControlPage() {
         <div className="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden">
           
           {/* Header Action Bar */}
-          <div className="p-5 bg-slate-50 border-b border-gray-200 flex justify-between items-center">
-            <span className="text-sm font-semibold text-gray-600">Showing {processedPlans.length} plans for {countryCode}</span>
-            <button 
-              onClick={handleBulkSave} 
-              disabled={isSaving}
-              className="bg-[#077770] text-white px-6 py-2.5 rounded-xl font-bold flex items-center gap-2 hover:bg-[#065f59] disabled:opacity-50 transition-all shadow-sm shadow-teal-500/20"
-            >
-              <Save size={18} /> {isSaving ? "Saving..." : "Save All Changes"}
-            </button>
+          <div className="p-5 bg-slate-50 border-b border-gray-200 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-semibold text-gray-600">
+                Showing {processedPlans.length} plans for {countryCode}
+              </span>
+              {isRecommendationActive && (
+                <span className="bg-amber-100 text-amber-800 text-xs px-2.5 py-0.5 rounded-full font-bold flex items-center gap-1">
+                  <Award size={13} /> Algorithm Rank Mode
+                </span>
+              )}
+            </div>
+
+            <div className="flex items-center gap-2 w-full sm:w-auto">
+              {isRecommendationActive && (
+                <button
+                  onClick={handleBulkReleaseTopPlans}
+                  className="flex-1 sm:flex-initial bg-amber-500 text-white px-4 py-2.5 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 hover:bg-amber-600 transition-all shadow-sm cursor-pointer"
+                >
+                  <CheckSquare size={16} /> Auto-Release Top {processedPlans.length} Plans
+                </button>
+              )}
+              
+              <button 
+                onClick={handleBulkSave} 
+                disabled={isSaving}
+                className="flex-1 sm:flex-initial bg-[#077770] text-white px-6 py-2.5 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-[#065f59] disabled:opacity-50 transition-all shadow-sm shadow-teal-500/20 cursor-pointer"
+              >
+                <Save size={18} /> {isSaving ? "Saving..." : "Save All Changes"}
+              </button>
+            </div>
           </div>
 
           {loading ? (
@@ -487,6 +751,9 @@ export default function AdminPlanControlPage() {
                     <th className="px-4 py-4 w-10"></th>
                     <th className="px-4 py-4">Product Info</th>
                     <th className="px-4 py-4">Attributes</th>
+                    {isRecommendationActive && (
+                      <th className="px-4 py-4 bg-teal-50/70 text-[#077770] border-l border-teal-100">Algorithmic Fit</th>
+                    )}
                     <th className="px-4 py-4 bg-gray-50 border-l border-gray-100">Base Price</th>
                     <th className="px-4 py-4 bg-orange-50 border-l border-orange-100 text-center">Released</th>
                     <th className="px-4 py-4 bg-orange-50 border-r border-orange-100 text-center">Multiplier</th>
@@ -496,7 +763,7 @@ export default function AdminPlanControlPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
-                  {processedPlans.map(plan => {
+                  {processedPlans.map((plan, index) => {
                     
                     const editState = editedPlans[plan.productID] || {};
                     const isExpanded = expandedPlanId === plan.productID;
@@ -511,16 +778,19 @@ export default function AdminPlanControlPage() {
                     const finalPrice = subtotal > 0 ? (subtotal + calculatedDelta) : 0;
                     const profitMargin = subtotal > 0 ? (subtotal - basePrice) : 0;
 
+                    const isTopDeal = isRecommendationActive && index === 0;
+                    const isCostEffective = isRecommendationActive && index > 0 && index < 3;
+
                     return (
                       <React.Fragment key={plan.productID}>
                         {/* MAIN ROW */}
-                        <tr className={`hover:bg-slate-50 transition-colors ${isExpanded ? 'bg-slate-50' : ''}`}>
+                        <tr className={`hover:bg-slate-50 transition-colors ${isExpanded ? 'bg-slate-50' : ''} ${isTopDeal ? 'bg-amber-50/30' : ''}`}>
                           
                           {/* Expand Icon */}
                           <td className="px-4 py-4">
                             <button 
                               onClick={() => setExpandedPlanId(isExpanded ? null : plan.productID)}
-                              className="text-gray-400 hover:text-blue-600 bg-gray-100 hover:bg-blue-100 p-1.5 rounded-full transition-colors"
+                              className="text-gray-400 hover:text-blue-600 bg-gray-100 hover:bg-blue-100 p-1.5 rounded-full transition-colors cursor-pointer"
                             >
                               {isExpanded ? <ChevronUp size={16}/> : <ChevronDown size={16}/>}
                             </button>
@@ -533,12 +803,22 @@ export default function AdminPlanControlPage() {
                               <span className="text-[10px] font-extrabold tracking-wider text-red-700 bg-red-100 border border-red-200 px-2 py-0.5 rounded-md uppercase shrink-0">
                                 Type {plan.productType}
                               </span>
+                              {isTopDeal && (
+                                <span className="text-[10px] font-extrabold tracking-wider text-amber-800 bg-amber-100 border border-amber-300 px-2 py-0.5 rounded-md uppercase shrink-0 flex items-center gap-1">
+                                  <Award size={10} /> Rank #1 Best Deal
+                                </span>
+                              )}
+                              {isCostEffective && (
+                                <span className="text-[10px] font-extrabold tracking-wider text-blue-700 bg-blue-100 border border-blue-200 px-2 py-0.5 rounded-md uppercase shrink-0 flex items-center gap-1">
+                                  <TrendingUp size={10} /> Rank #{index + 1}
+                                </span>
+                              )}
                             </div>
                             <div className="text-xs text-gray-500 font-mono bg-gray-100 inline-block px-2 py-0.5 rounded mt-1">{plan.productID}</div>
                           </td>
 
                           {/* Attributes */}
-                         <td className="px-4 py-4 font-medium text-gray-700">
+                          <td className="px-4 py-4 font-medium text-gray-700">
                             <span className={
                               plan.productDataType === "unlimited" ? "text-emerald-600 font-bold" : 
                               plan.productDataType === "daily" ? "text-blue-600 font-bold" : 
@@ -548,11 +828,30 @@ export default function AdminPlanControlPage() {
                                 ? "Unlimited" 
                                 : `${plan.productDataAllowance}${plan.dataAllowanceUnit} ${plan.productDataType === "daily" ? "Daily" : "Total"}`}
                             </span>
-                            {' '} <br /> Validity: {plan.productValidityDays} Days<br></br>
+                            {' '} <br /> Validity: {plan.productValidityDays} Days<br />
                             
                             <span className="text-gray-500 text-xs">Voice:</span>{' '} 
                             {plan.productVoice === 'Yes' || plan.productVoiceMinutes > 0 ? `${plan.productVoiceMinutes} Mins` : 'None'}
                           </td>
+
+                          {/* Algorithmic Fit / Match % Column (When active) */}
+                          {isRecommendationActive && (
+                            <td className="px-4 py-4 bg-teal-50/40 border-l border-teal-100">
+                              <div className="flex items-center justify-between text-xs font-bold mb-1">
+                                {/* <span className="text-teal-900">{plan.matchPercentage}% Fit</span> */}
+                                <span className="text-[16px] font-bold text-brand font-mono">VFM: {plan.vfmScore.toFixed(3)}</span>
+                              </div>
+                              {/* <div className="w-full bg-teal-100 h-1.5 rounded-full overflow-hidden">
+                                <div 
+                                  className="bg-[#077770] h-full rounded-full" 
+                                  style={{ width: `${plan.matchPercentage}%` }}
+                                />
+                              </div> */}
+                              <span className="text-[16px] text-secondary font-bold block mt-1">
+                                ${plan.dailyCost.toFixed(2)}/day
+                              </span>
+                            </td>
+                          )}
 
                           {/* Base Price (Gray) */}
                           <td className="px-4 py-4 font-bold text-slate-500 bg-gray-50/50 border-l border-gray-100">
@@ -575,24 +874,21 @@ export default function AdminPlanControlPage() {
                           {/* Multiplier Column (Orange) */}
                           <td className="px-4 py-4 text-center bg-orange-50/30 border-r border-orange-100">
                             <input 
-  type="number"
-  step="0.1"
-  min="1"
-  disabled={!editState.is_active}
-  value={editState.custom_multiplier}
-  onChange={(e) => handleEdit(plan.productID, "custom_multiplier", e.target.value)}
-  
-  // 🌟 ADD THIS: Validate when the user leaves the input field
-  onBlur={(e) => {
-    const val = parseFloat(e.target.value);
-    if (isNaN(val) || val < 1) {
-      handleEdit(plan.productID, "custom_multiplier", 1); // Force back to 1
-    }
-  }}
-
-  placeholder="e.g. 1.5"
-  className="w-20 px-2 py-1.5 border border-orange-300 bg-white rounded-md text-center text-gray-900 font-bold focus:ring-2 focus:ring-orange-500 outline-none shadow-sm disabled:bg-slate-100 disabled:text-slate-400 disabled:border-slate-200 transition-all"
-/>
+                              type="number"
+                              step="0.1"
+                              min="1"
+                              disabled={!editState.is_active}
+                              value={editState.custom_multiplier}
+                              onChange={(e) => handleEdit(plan.productID, "custom_multiplier", e.target.value)}
+                              onBlur={(e) => {
+                                const val = parseFloat(e.target.value);
+                                if (isNaN(val) || val < 1) {
+                                  handleEdit(plan.productID, "custom_multiplier", 1);
+                                }
+                              }}
+                              placeholder="e.g. 1.5"
+                              className="w-20 px-2 py-1.5 border border-orange-300 bg-white rounded-md text-center text-gray-900 font-bold focus:ring-2 focus:ring-orange-500 outline-none shadow-sm disabled:bg-slate-100 disabled:text-slate-400 disabled:border-slate-200 transition-all"
+                            />
                           </td>
 
                           {/* Calculated Delta (Purple) */}
@@ -615,7 +911,7 @@ export default function AdminPlanControlPage() {
                         {/* EXPANDED DETAILS ROW */}
                         {isExpanded && (
                           <tr>
-                            <td colSpan="9" className="bg-slate-50 border-b border-gray-200 p-0">
+                            <td colSpan={isRecommendationActive ? "10" : "9"} className="bg-slate-50 border-b border-gray-200 p-0">
                               <div className="px-10 py-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 animate-in fade-in slide-in-from-top-2 duration-200">
                                 
                                 <div>
@@ -658,8 +954,8 @@ export default function AdminPlanControlPage() {
 
                   {processedPlans.length === 0 && (
                     <tr>
-                      <td colSpan="9" className="px-6 py-12 text-center text-gray-500 font-medium">
-                        No plans found matching your search, filters, or sorting.
+                      <td colSpan={isRecommendationActive ? "10" : "9"} className="px-6 py-12 text-center text-gray-500 font-medium">
+                        No plans found matching your search, filters, or algorithmic requirements.
                       </td>
                     </tr>
                   )}
