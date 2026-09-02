@@ -7,7 +7,7 @@ import {
   Search, Download, Save, 
   ChevronDown, ChevronUp, Check, ArrowLeft,
   Info, Filter, ArrowUpDown, Globe, Sparkles,
-  RotateCcw, Award, TrendingUp, CheckSquare, Zap
+  RotateCcw, Award, TrendingUp, CheckSquare, Zap, Ban
 } from "lucide-react";
 
 // 🌟 Import all destinations
@@ -102,7 +102,8 @@ export default function AdminPlanControlPage() {
   const [plans, setPlans] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [autoReleaseMultiplier,setAutoReleaseMultiplier] = useState(1.2)
+  const [autoReleaseMultiplier, setAutoReleaseMultiplier] = useState(1.2);
+  
   // --- BULK EDITING STATES ---
   const [editedPlans, setEditedPlans] = useState({});
   const [isSaving, setIsSaving] = useState(false);
@@ -125,6 +126,7 @@ export default function AdminPlanControlPage() {
   const [algoMinDays, setAlgoMinDays] = useState(1);
   const [algoMaxDays, setAlgoMaxDays] = useState(30);
   const [algoServiceType, setAlgoServiceType] = useState("all");
+  const [algoSimType, setAlgoSimType] = useState("1_2"); // Default: Type 1 & 2
 
   // --- UI STATES ---
   const [expandedPlanId, setExpandedPlanId] = useState(null);
@@ -276,29 +278,33 @@ export default function AdminPlanControlPage() {
   };
 
   // --- 5. ALGORITHMIC PROCESSING ---
- const recommendedPlans = useMemo(() => {
-  if (!isRecommendationActive) return [];
+  const recommendedPlans = useMemo(() => {
+    if (!isRecommendationActive) return [];
 
-  return plans
-    .map(p => calculateAdminPlanScores(p, editedPlans[p.productID], algoProfile))
-    .filter(p => p.valueScore >= 0.35)
-    .filter(p => {
-      const days = parseInt(p.productValidityDays || 0, 10);
-      const matchesValidity = days >= Number(algoMinDays) && days <= Number(algoMaxDays);
-      if (!matchesValidity) return false;
+    return plans
+      .map(p => calculateAdminPlanScores(p, editedPlans[p.productID], algoProfile))
+      .filter(p => p.valueScore >= 0.35)
+      .filter(p => {
+        // SIM Type Filter for Recommendation Engine
+        const typeNum = parseInt(p.productType ?? p.type, 10);
+        if (algoSimType === "1_2" && (typeNum < 1 || typeNum > 2)) return false;
 
-      const isUnlimited = p.productDataType === "unlimited";
-      const hasVoice = p.productVoice === "Yes" || parseInt(p.productVoiceMinutes || 0, 10) > 0;
-      const hasSms = p.productSms === "Yes" || parseInt(p.productSmsCount || 0, 10) > 0;
+        const days = parseInt(p.productValidityDays || 0, 10);
+        const matchesValidity = days >= Number(algoMinDays) && days <= Number(algoMaxDays);
+        if (!matchesValidity) return false;
 
-      if (algoServiceType === "unlimited") return isUnlimited;
-      if (algoServiceType === "data") return !hasVoice && !hasSms && !isUnlimited;
-      if (algoServiceType === "combo") return hasVoice || hasSms;
-      return true;
-    })
-    .sort((a, b) => b.vfmScore - a.vfmScore)
-    .slice(0, Number(algoPlanCount));
-}, [plans, isRecommendationActive, algoProfile, algoMinDays, algoMaxDays, algoServiceType, algoPlanCount]);
+        const isUnlimited = p.productDataType === "unlimited";
+        const hasVoice = p.productVoice === "Yes" || parseInt(p.productVoiceMinutes || 0, 10) > 0;
+        const hasSms = p.productSms === "Yes" || parseInt(p.productSmsCount || 0, 10) > 0;
+
+        if (algoServiceType === "unlimited") return isUnlimited;
+        if (algoServiceType === "data") return !hasVoice && !hasSms && !isUnlimited;
+        if (algoServiceType === "combo") return hasVoice || hasSms;
+        return true;
+      })
+      .sort((a, b) => b.vfmScore - a.vfmScore)
+      .slice(0, Number(algoPlanCount));
+  }, [plans, isRecommendationActive, algoProfile, algoMinDays, algoMaxDays, algoServiceType, algoSimType, algoPlanCount]);
 
   // --- 6. APPLY FILTERS & SORTING ---
   const standardFilteredPlans = useMemo(() => {
@@ -362,72 +368,134 @@ export default function AdminPlanControlPage() {
   const processedPlans = isRecommendationActive ? recommendedPlans : standardFilteredPlans;
 
   // --- 7. AUTO-RELEASE TOP RECOMMENDED PLANS ---
- const handleBulkReleaseTopPlans = async (autoSave = false) => {
-  if (!recommendedPlans || recommendedPlans.length === 0) {
-    alert("No recommended plans available to release.");
-    return;
-  }
+  const handleBulkReleaseTopPlans = async (autoSave = false) => {
+    if (!recommendedPlans || recommendedPlans.length === 0) {
+      alert("No recommended plans available to release.");
+      return;
+    }
 
-  const selectedMultiplier = parseFloat(autoReleaseMultiplier) || 1.2;
+    const selectedMultiplier = parseFloat(autoReleaseMultiplier) || 1.2;
 
-  // 1. Update local state with the chosen multiplier
-  let updatedState = {};
-  setEditedPlans((prev) => {
-    const updated = { ...prev };
+    let updatedState = {};
+    setEditedPlans((prev) => {
+      const updated = { ...prev };
 
-    recommendedPlans.forEach((p) => {
+      recommendedPlans.forEach((p) => {
+        const planId = p.productID || p.id || p.plan_id;
+        if (!planId) return;
+
+        const existingEdit = updated[planId] || {};
+
+        updated[planId] = {
+          ...existingEdit,
+          plan_id: planId,
+          is_active: true,
+          custom_multiplier: String(selectedMultiplier),
+          priority: existingEdit.priority ?? p.control?.priority ?? 10,
+        };
+      });
+
+      updatedState = updated;
+      return updated;
+    });
+
+    if (autoSave) {
+      setIsSaving(true);
+      try {
+        const plansArray = Object.values(updatedState).map((p) => ({
+          plan_id: p.plan_id,
+          is_active: Boolean(p.is_active),
+          custom_multiplier: p.is_active && p.custom_multiplier ? parseFloat(p.custom_multiplier) : null,
+          priority: p.priority || 10,
+        }));
+
+        const res = await axios.post(
+          `${API_BASE}/admin/plan-control/add`,
+          {
+            country_code: countryCode,
+            plans: plansArray,
+          },
+          {
+            headers: { Authorization: `Bearer ${adminToken}` },
+          }
+        );
+
+        if (res.data.status === 200 || res.data.success || res.status === 200) {
+          alert(`Successfully released and saved top ${recommendedPlans.length} plans with ${selectedMultiplier}x multiplier!`);
+          fetchPlans();
+        } else {
+          alert("Error: " + (res.data.message || "Failed to save"));
+        }
+      } catch (err) {
+        console.error("Auto-release save failed:", err);
+        alert(err.response?.data?.message || "Failed to save released plans to database.");
+      } finally {
+        setIsSaving(false);
+      }
+    }
+  };
+
+  // --- 8. DEACTIVATE ALL ACTIVE PLANS ---
+  const handleDeactivateAllPlans = async () => {
+  if (!confirm("Are you sure you want to turn OFF all active plans for this country?")) return;
+
+  setIsSaving(true);
+
+  try {
+    // 1. Synchronously construct the updated object from current state & catalog
+    const nextEditedPlans = { ...editedPlans };
+
+    // Ensure all current plans in catalog are accounted for and marked inactive
+    plans.forEach((p) => {
       const planId = p.productID || p.id || p.plan_id;
       if (!planId) return;
 
-      const existingEdit = updated[planId] || {};
-
-      updated[planId] = {
-        ...existingEdit,
+      const existing = nextEditedPlans[planId] || {};
+      nextEditedPlans[planId] = {
+        ...existing,
         plan_id: planId,
-        is_active: true,
-        custom_multiplier: String(selectedMultiplier),
-        priority: existingEdit.priority ?? p.control?.priority ?? 10,
+        is_active: false,
+        custom_multiplier: existing.custom_multiplier || null,
+        priority: existing.priority ?? p.control?.priority ?? 10,
       };
     });
 
-    updatedState = updated;
-    return updated;
-  });
+    // 2. Update React state immediately with the pre-computed object
+    setEditedPlans(nextEditedPlans);
 
-  // 2. Persist to database
-  if (autoSave) {
-    setIsSaving(true);
-    try {
-      const plansArray = Object.values(updatedState).map((p) => ({
-        plan_id: p.plan_id,
-        is_active: Boolean(p.is_active),
-        custom_multiplier: p.is_active && p.custom_multiplier ? parseFloat(p.custom_multiplier) : null,
-        priority: p.priority || 10,
-      }));
+    // 3. Build the payload directly from the synchronous object
+    const plansArray = Object.values(nextEditedPlans).map((p) => ({
+      plan_id: p.plan_id,
+      is_active: false,
+      custom_multiplier: null,
+      priority: p.priority || 10,
+    }));
 
-      const res = await axios.post(
-        `${API_BASE}/admin/plan-control/add`,
-        {
-          country_code: countryCode,
-          plans: plansArray,
-        },
-        {
-          headers: { Authorization: `Bearer ${adminToken}` },
-        }
-      );
+    console.log("Submitting deactivated payload:", plansArray);
 
-      if (res.data.status === 200 || res.data.success || res.status === 200) {
-        alert(`Successfully released and saved top ${recommendedPlans.length} plans with ${selectedMultiplier}x multiplier!`);
-        fetchPlans();
-      } else {
-        alert("Error: " + (res.data.message || "Failed to save"));
+    // 4. Send request to backend
+    const res = await axios.post(
+      `${API_BASE}/admin/plan-control/add`,
+      {
+        country_code: countryCode,
+        plans: plansArray,
+      },
+      {
+        headers: { Authorization: `Bearer ${adminToken}` },
       }
-    } catch (err) {
-      console.error("Auto-release save failed:", err);
-      alert(err.response?.data?.message || "Failed to save released plans to database.");
-    } finally {
-      setIsSaving(false);
+    );
+
+    if (res.data.status === 200 || res.data.success || res.status === 200) {
+      alert("All plans have been deactivated successfully!");
+      fetchPlans();
+    } else {
+      alert("Error: " + (res.data.message || "Failed to deactivate plans"));
     }
+  } catch (err) {
+    console.error("Deactivation error:", err);
+    alert(err.response?.data?.message || "Failed to deactivate plans.");
+  } finally {
+    setIsSaving(false);
   }
 };
 
@@ -541,7 +609,7 @@ export default function AdminPlanControlPage() {
                   onClick={() => setIsRecommendationActive(false)}
                   className="flex items-center gap-1 text-xs font-bold text-slate-500 hover:text-red-600 transition-colors cursor-pointer"
                 >
-                  <RotateCcw size={13} />View All
+                  <RotateCcw size={13} /> View All
                 </button>
               )}
             </div>
@@ -551,8 +619,9 @@ export default function AdminPlanControlPage() {
                 e.preventDefault();
                 setIsRecommendationActive(true);
               }}
-              className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 items-end"
+              className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3 items-end"
             >
+              {/* Persona */}
               <div>
                 <label className="block text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-1.5">Customer Persona</label>
                 <select
@@ -567,6 +636,20 @@ export default function AdminPlanControlPage() {
                 </select>
               </div>
 
+              {/* SIM Type Filter */}
+              <div>
+                <label className="block text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-1.5">SIM Type</label>
+                <select
+                  value={algoSimType}
+                  onChange={(e) => setAlgoSimType(e.target.value)}
+                  className="w-full bg-white border border-slate-200 text-slate-800 text-xs font-semibold rounded-lg p-2 outline-none focus:ring-2 focus:ring-teal-500 cursor-pointer shadow-sm"
+                >
+                  <option value="1_2">Type 1 &amp; 2 (No KYC)</option>
+                  <option value="all">All Types (1 to 5)</option>
+                </select>
+              </div>
+
+              {/* Limit Slider */}
               <div>
                 <div className="flex justify-between items-center mb-1.5">
                   <label className="text-[11px] font-bold text-slate-600 uppercase tracking-wider">Top Limit</label>
@@ -583,6 +666,7 @@ export default function AdminPlanControlPage() {
                 />
               </div>
 
+              {/* Validity Range */}
               <div>
                 <label className="block text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-1.5">Validity (Days)</label>
                 <div className="flex items-center gap-1.5">
@@ -607,6 +691,7 @@ export default function AdminPlanControlPage() {
                 </div>
               </div>
 
+              {/* Service Structure */}
               <div>
                 <label className="block text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-1.5">Service Type</label>
                 <select
@@ -621,6 +706,7 @@ export default function AdminPlanControlPage() {
                 </select>
               </div>
 
+              {/* Submit Button */}
               <div>
                 <button
                   type="submit"
@@ -758,52 +844,62 @@ export default function AdminPlanControlPage() {
                 Showing {processedPlans.length} plans for {countryCode}
               </span>
               {isRecommendationActive && (
-                
                 <span className="bg-amber-100 text-amber-800 text-xs px-2.5 py-0.5 rounded-full font-bold flex items-center gap-1">
                   <Award size={13} /> Algorithm Rank Mode (Beta)
                 </span>
-                
               )}
             </div>
 
-            <div className="flex items-center gap-2 w-full sm:w-auto">
+            <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto justify-end">
+              {/* Auto Release Action Group */}
               {isRecommendationActive && (
-  <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 p-1.5 rounded-xl">
-    {/* Multiplier Input Box */}
-    <div className="flex items-center gap-1.5 pl-2">
-      <span className="text-[11px] font-bold text-amber-900 uppercase">Rate:</span>
-      <div className="relative flex items-center">
-        <input
-          type="number"
-          step="0.1"
-          min="1"
-          max="10"
-          value={autoReleaseMultiplier}
-          onChange={(e) => setAutoReleaseMultiplier(e.target.value)}
-          className="w-16 px-2 py-1.5 bg-white border border-amber-300 rounded-lg text-xs font-black text-center text-slate-900 outline-none focus:ring-2 focus:ring-amber-500 shadow-sm"
-          placeholder="1.5"
-        />
-        <span className="text-xs font-bold text-amber-800 ml-1">x</span>
-      </div>
-    </div>
+                <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 p-1.5 rounded-xl">
+                  <div className="flex items-center gap-1.5 pl-2">
+                    <span className="text-[11px] font-bold text-amber-900 uppercase">Rate:</span>
+                    <div className="relative flex items-center">
+                      <input
+                        type="number"
+                        step="0.1"
+                        min="1"
+                        max="10"
+                        value={autoReleaseMultiplier}
+                        onChange={(e) => setAutoReleaseMultiplier(e.target.value)}
+                        className="w-16 px-2 py-1.5 bg-white border border-amber-300 rounded-lg text-xs font-black text-center text-slate-900 outline-none focus:ring-2 focus:ring-amber-500 shadow-sm"
+                        placeholder="1.2"
+                      />
+                      <span className="text-xs font-bold text-amber-800 ml-1">x</span>
+                    </div>
+                  </div>
 
-    {/* Auto-Release Button */}
-    <button
-      type="button"
-      onClick={() => handleBulkReleaseTopPlans(true)}
-      disabled={isSaving}
-      className="bg-amber-500 text-white px-4 py-2 rounded-lg font-bold text-xs flex items-center justify-center gap-1.5 hover:bg-amber-600 active:scale-95 transition-all shadow-sm cursor-pointer disabled:opacity-50"
-    >
-      <CheckSquare size={15} />
-      {isSaving ? "Releasing..." : `Auto-Release Top ${processedPlans.length} Plans`}
-    </button>
-  </div>
-)}
+                  <button
+                    type="button"
+                    onClick={() => handleBulkReleaseTopPlans(true)}
+                    disabled={isSaving}
+                    className="bg-amber-500 text-white px-4 py-2 rounded-lg font-bold text-xs flex items-center justify-center gap-1.5 hover:bg-amber-600 active:scale-95 transition-all shadow-sm cursor-pointer disabled:opacity-50"
+                  >
+                    <CheckSquare size={15} />
+                    {isSaving ? "Releasing..." : `Auto-Release Top ${processedPlans.length} Plans`}
+                  </button>
+                </div>
+              )}
+
+              {/* Turn Off / Deactivate All Active Plans */}
+              <button
+                type="button"
+                onClick={handleDeactivateAllPlans}
+                disabled={isSaving}
+                className="bg-red-50 text-red-700 border border-red-200 hover:bg-red-100 px-4 py-2.5 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer disabled:opacity-50 shadow-sm"
+                title="Turn off all active/released plans for this country"
+              >
+                <Ban size={15} className="text-red-600" />
+                Deactivate All Plans
+              </button>
               
+              {/* Save All Changes */}
               <button 
                 onClick={handleBulkSave} 
                 disabled={isSaving}
-                className="flex-1 sm:flex-initial bg-[#077770] text-white px-6 py-2.5 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-[#065f59] disabled:opacity-50 transition-all shadow-sm shadow-teal-500/20 cursor-pointer"
+                className="bg-[#077770] text-white px-6 py-2.5 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-[#065f59] disabled:opacity-50 transition-all shadow-sm shadow-teal-500/20 cursor-pointer"
               >
                 <Save size={18} /> {isSaving ? "Saving..." : "Save All Changes"}
               </button>
@@ -838,7 +934,6 @@ export default function AdminPlanControlPage() {
                 </thead>
                 <tbody className="divide-y divide-gray-100">
                   {processedPlans.map((plan, index) => {
-                    
                     const editState = editedPlans[plan.productID] || {};
                     const isExpanded = expandedPlanId === plan.productID;
                     
@@ -908,19 +1003,12 @@ export default function AdminPlanControlPage() {
                             {plan.productVoice === 'Yes' || plan.productVoiceMinutes > 0 ? `${plan.productVoiceMinutes} Mins` : 'None'}
                           </td>
 
-                          {/* Algorithmic Fit / Match % Column (When active) */}
+                          {/* Algorithmic Fit / Match % Column */}
                           {isRecommendationActive && (
                             <td className="px-4 py-4 bg-teal-50/40 border-l border-teal-100">
                               <div className="flex items-center justify-between text-xs font-bold mb-1">
-                                {/* <span className="text-teal-900">{plan.matchPercentage}% Fit</span> */}
                                 <span className="text-[16px] font-bold text-brand font-mono">VFM: {plan.vfmScore.toFixed(3)}</span>
                               </div>
-                              {/* <div className="w-full bg-teal-100 h-1.5 rounded-full overflow-hidden">
-                                <div 
-                                  className="bg-[#077770] h-full rounded-full" 
-                                  style={{ width: `${plan.matchPercentage}%` }}
-                                />
-                              </div> */}
                               <span className="text-[16px] text-secondary font-bold block mt-1">
                                 ${plan.dailyCost.toFixed(2)}/day
                               </span>
