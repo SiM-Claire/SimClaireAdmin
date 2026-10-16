@@ -33,6 +33,29 @@ const UNLIMITED_VALUES = {
   SMS: 50.0    // SMS/day
 };
 
+// --- Pricing Constants & Two-Way Conversion Helpers ---
+const DELTA_RATE = 0.025; // 2.5% delta fee
+const DELTA_CAP = 4;      // capped at $4
+// Final price at which the delta fee hits its cap (subtotal 160 -> delta 4 -> final 164)
+const DELTA_CAP_FINAL_THRESHOLD = (DELTA_CAP / DELTA_RATE) * (1 + DELTA_RATE);
+
+// multiplier -> final price
+const computeFinalPrice = (basePrice, multiplier) => {
+  const subtotal = basePrice * multiplier;
+  if (!(subtotal > 0)) return 0;
+  const delta = Math.min(subtotal * DELTA_RATE, DELTA_CAP);
+  return subtotal + delta;
+};
+
+// final price -> multiplier (inverse of computeFinalPrice)
+const computeMultiplierFromFinal = (basePrice, finalPrice) => {
+  if (!(basePrice > 0) || !(finalPrice > 0)) return 0;
+  const subtotal = finalPrice <= DELTA_CAP_FINAL_THRESHOLD
+    ? finalPrice / (1 + DELTA_RATE)
+    : finalPrice - DELTA_CAP;
+  return subtotal / basePrice;
+};
+
 // --- Algorithm Calculator for Admin Schema ---
 const calculateAdminPlanScores = (plan, editState, profileKey) => {
   const profile = USER_PROFILES[profileKey] || USER_PROFILES.balanced;
@@ -159,10 +182,16 @@ export default function AdminPlanControlPage() {
         // 🌟 Initialize bulk editing state
         const initialEdits = {};
         res.data.data.plans.forEach(p => {
+          const mult = p.is_configured ? (p.control?.custom_multiplier || "") : "";
+          const bp = parseFloat(p.productBasePrice || 0);
+          const finalStr = (mult !== "" && bp > 0 && !isNaN(parseFloat(mult)))
+            ? computeFinalPrice(bp, parseFloat(mult)).toFixed(2)
+            : "";
           initialEdits[p.productID] = {
             plan_id: p.productID,
             is_active: p.is_configured ? (p.control?.is_active ?? false) : false,
-            custom_multiplier: p.is_configured ? (p.control?.custom_multiplier || "") : "",
+            custom_multiplier: mult,
+            final_price: finalStr,
             priority: p.is_configured ? (p.control?.priority ?? 10) : 10
           };
         });
@@ -191,6 +220,41 @@ export default function AdminPlanControlPage() {
       [planId]: {
         ...prev[planId],
         [field]: value
+      }
+    }));
+  };
+
+  // --- 2b. TWO-WAY MULTIPLIER <-> FINAL PRICE SYNC ---
+  // Admin types a multiplier -> final price is computed automatically.
+  const handleMultiplierChange = (plan, value) => {
+    const basePrice = parseFloat(plan.productBasePrice || 0);
+    const mult = parseFloat(value);
+    const finalStr = (!isNaN(mult) && basePrice > 0)
+      ? computeFinalPrice(basePrice, mult).toFixed(2)
+      : "";
+    setEditedPlans(prev => ({
+      ...prev,
+      [plan.productID]: {
+        ...prev[plan.productID],
+        custom_multiplier: value,
+        final_price: finalStr
+      }
+    }));
+  };
+
+  // Admin types a final price -> multiplier is back-calculated automatically.
+  const handleFinalPriceChange = (plan, value) => {
+    const basePrice = parseFloat(plan.productBasePrice || 0);
+    const finalPrice = parseFloat(value);
+    const multStr = (!isNaN(finalPrice) && basePrice > 0)
+      ? computeMultiplierFromFinal(basePrice, finalPrice).toFixed(4)
+      : "";
+    setEditedPlans(prev => ({
+      ...prev,
+      [plan.productID]: {
+        ...prev[plan.productID],
+        final_price: value,
+        custom_multiplier: multStr
       }
     }));
   };
@@ -385,12 +449,17 @@ export default function AdminPlanControlPage() {
         if (!planId) return;
 
         const existingEdit = updated[planId] || {};
+        const basePrice = parseFloat(p.productBasePrice || 0);
+        const finalStr = basePrice > 0
+          ? computeFinalPrice(basePrice, selectedMultiplier).toFixed(2)
+          : "";
 
         updated[planId] = {
           ...existingEdit,
           plan_id: planId,
           is_active: true,
           custom_multiplier: String(selectedMultiplier),
+          final_price: finalStr,
           priority: existingEdit.priority ?? p.control?.priority ?? 10,
         };
       });
@@ -943,8 +1012,7 @@ export default function AdminPlanControlPage() {
                     
                     const subtotal = basePrice * multiplier;
                     const calculatedDelta = Math.min(subtotal * 0.025, 4); // 2.5% capped at $4
-                    
-                    const finalPrice = subtotal > 0 ? (subtotal + calculatedDelta) : 0;
+
                     const profitMargin = subtotal > 0 ? (subtotal - basePrice) : 0;
 
                     const isTopDeal = isRecommendationActive && index === 0;
@@ -1035,17 +1103,17 @@ export default function AdminPlanControlPage() {
 
                           {/* Multiplier Column (Orange) */}
                           <td className="px-4 py-4 text-center bg-orange-50/30 border-r border-orange-100">
-                            <input 
+                            <input
                               type="number"
                               step="0.1"
                               min="1"
                               disabled={!editState.is_active}
-                              value={editState.custom_multiplier}
-                              onChange={(e) => handleEdit(plan.productID, "custom_multiplier", e.target.value)}
+                              value={editState.custom_multiplier ?? ""}
+                              onChange={(e) => handleMultiplierChange(plan, e.target.value)}
                               onBlur={(e) => {
                                 const val = parseFloat(e.target.value);
                                 if (isNaN(val) || val < 1) {
-                                  handleEdit(plan.productID, "custom_multiplier", 1);
+                                  handleMultiplierChange(plan, "1");
                                 }
                               }}
                               placeholder="e.g. 1.5"
@@ -1058,9 +1126,27 @@ export default function AdminPlanControlPage() {
                             ${calculatedDelta.toFixed(2)}
                           </td>
 
-                          {/* Final Price (Blue) */}
-                          <td className="px-4 py-4 text-right font-extrabold text-blue-700 text-base bg-blue-50/30 border-l border-blue-100">
-                            CAD {finalPrice.toFixed(2)}
+                          {/* Final Price (Blue) - editable; back-calculates the multiplier */}
+                          <td className="px-4 py-4 text-right bg-blue-50/30 border-l border-blue-100">
+                            <div className="flex items-center justify-end gap-1">
+                              <span className="text-xs font-bold text-blue-700">CAD</span>
+                              <input
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                disabled={!editState.is_active}
+                                value={editState.final_price ?? ""}
+                                onChange={(e) => handleFinalPriceChange(plan, e.target.value)}
+                                onBlur={(e) => {
+                                  const val = parseFloat(e.target.value);
+                                  if (isNaN(val) || val <= 0) {
+                                    handleMultiplierChange(plan, "1");
+                                  }
+                                }}
+                                placeholder="e.g. 9.99"
+                                className="w-24 px-2 py-1.5 border border-blue-300 bg-white rounded-md text-right text-blue-700 font-extrabold text-base focus:ring-2 focus:ring-blue-500 outline-none shadow-sm disabled:bg-slate-100 disabled:text-slate-400 disabled:border-slate-200 transition-all"
+                              />
+                            </div>
                           </td>
                           
                           {/* Profit Margin (Green) */}
