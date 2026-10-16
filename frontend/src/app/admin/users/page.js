@@ -108,6 +108,7 @@ export default function AdminUsersPanel() {
         headers: { Authorization: `Bearer ${adminToken}` }
       });
       if (res.data && res.data.data) {
+        console.log(res.data.data)
         setUserSims(res.data.data);
       } else {
         setSearchError("No data returned from the server.");
@@ -1080,12 +1081,36 @@ const enteredPassword = window.prompt("Enter admin PIN to update the order. This
                             <span className="font-mono font-bold text-lg text-[#077770]">{sim.currency} {sim.final_price}</span>
                           </div>
 
+                          {sim.payment_breakdown && (
+                            <>
+                              <div className="flex justify-between items-center">
+                                <span className="text-sm text-gray-600 font-medium flex items-center gap-1.5">
+                                  <Database size={14} className="text-gray-400"/> Net Amount (excl. tax)
+                                </span>
+                                <span className="font-mono font-semibold text-gray-700">
+                                  {sim.payment_breakdown.currency} {sim.payment_breakdown.net_amount_excluding_tax}
+                                </span>
+                              </div>
+
+                              <div className="flex justify-between items-center border-b border-gray-200 pb-2">
+                                <span className="text-sm text-gray-600 font-medium flex items-center gap-1.5">
+                                  <Tag size={14} className="text-gray-400"/> Tax {sim.payment_breakdown.tax_rate_percentage > 0 && `(${sim.payment_breakdown.tax_rate_percentage}%)`}
+                                </span>
+                                <span className="font-mono font-semibold text-gray-700">
+                                  {sim.payment_breakdown.currency} {sim.payment_breakdown.tax_amount}
+                                </span>
+                              </div>
+                            </>
+                          )}
+
                           <div className="flex justify-between items-center pt-1">
                             <span className="text-sm text-gray-600 font-medium flex items-center gap-1.5">
                               <CreditCard size={14} className="text-green-600"/> Actual Amount Paid
                             </span>
                             <span className="font-mono font-bold text-green-700 bg-green-100 px-2 py-0.5 rounded border border-green-200">
-                              {sim.payment_currency} {sim.payment_amount}
+                              {sim.payment_breakdown
+                                ? `${sim.payment_breakdown.currency} ${sim.payment_breakdown.gross_amount_paid}`
+                                : `${sim.payment_currency} ${sim.payment_amount}`}
                             </span>
                           </div>
                         </div>
